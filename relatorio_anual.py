@@ -11,7 +11,8 @@ from datetime import datetime
 caminho_base = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
 meses = ['Maio', 'Junho']
 ano = '2025'
-output_pdf = os.path.join(os.path.expanduser('~'), 'Downloads', 'Relatorio_Consolidado_Vendas.pdf')
+data_geracao = datetime.now().strftime('%Y-%m-%d')
+output_pdf = os.path.join(os.path.expanduser('~'), 'Downloads', f'Relatorio_Consolidado_Vendas_{data_geracao}.pdf')
 
 # Dicionário para armazenar os dados
 dados_consolidados = {}
@@ -121,7 +122,7 @@ with PdfPages(output_pdf) as pdf:
     # Página de título com data e hora de geração
     data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
-    plt.text(0.5, 0.6, 'Relatório Consolidado de Vendas', 
+    plt.text(0.5, 0.6, 'Relatório de Vendas', 
              ha='center', va='center', fontsize=16, fontweight='bold')
     plt.text(0.5, 0.5, f'Período: Maio a Junho de {ano}', 
              ha='center', va='center', fontsize=12)
