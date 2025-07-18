@@ -149,43 +149,51 @@ df_totais = pd.DataFrame.from_dict({mes: {k: v for k, v in dados.items() if k.st
 df_totais.index.name = 'Mês'
 df_totais = df_totais.reset_index()
 
+# Configurações de layout padronizadas
+PAGE_WIDTH = 11.69  # Largura A4 em polegadas
+PAGE_HEIGHT = 8.27   # Altura A4 em polegadas
+FONT_SIZE = 10
+DPI = 300
+
 # Criar PDF com os resultados
 with PdfPages(output_pdf) as pdf:
     # Configuração geral do estilo
-    plt.rcParams['font.size'] = 10
-    plt.figure(figsize=(11.69, 8.27))  # Tamanho A4
+    plt.rcParams.update({
+        'font.size': FONT_SIZE,
+        'figure.dpi': DPI,
+        'figure.autolayout': True  # Ajusta automaticamente o layout
+    })
     
-    # Título do relatório
-    plt.text(0.5, 0.95, 'Relatório Consolidado de Vendas', 
+    # 1. Página de título
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
+    plt.text(0.5, 0.6, 'Relatório Consolidado de Vendas', 
              ha='center', va='center', fontsize=16, fontweight='bold')
-    plt.text(0.5, 0.90, f'Período: Maio a Junho de {ano}', 
+    plt.text(0.5, 0.5, f'Período: Maio a Junho de {ano}', 
              ha='center', va='center', fontsize=12)
     plt.axis('off')
-    pdf.savefig()
-    plt.close()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
     
-    # Seção 1: Quantidades
-    plt.figure(figsize=(11.69, 8.27))
+    # 2. Seção de Quantidades
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
     plt.text(0.5, 0.95, '1. Análise de Quantidades', 
              ha='center', va='center', fontsize=14, fontweight='bold')
     plt.axis('off')
-    pdf.savefig()
-    plt.close()
     
     # Tabela de quantidades
-    fig, ax = plt.subplots(figsize=(11, 4))
-    ax.axis('tight')
-    ax.axis('off')
+    ax_table = fig.add_subplot(211)
+    ax_table.axis('tight')
+    ax_table.axis('off')
     
     tabela_dados = df_quantidades[['Mês', 'Qtde Clientes', 'Qtde Vendedores', 'Qtde Produtos']].values
     
-    tabela = ax.table(cellText=tabela_dados,
+    tabela = ax_table.table(cellText=tabela_dados,
                       colLabels=['Mês', 'Qtde Clientes', 'Qtde Vendedores', 'Qtde Produtos'],
                       loc='center',
                       cellLoc='center')
     
     tabela.auto_set_font_size(False)
-    tabela.set_fontsize(10)
+    tabela.set_fontsize(FONT_SIZE)
     tabela.scale(1, 1.5)
     
     for (i, j), cell in tabela.get_celld().items():
@@ -193,49 +201,43 @@ with PdfPages(output_pdf) as pdf:
             cell.set_text_props(fontweight='bold')
             cell.set_facecolor('#f2f2f2')
     
-    plt.title('Quantidades por Mês', y=1.08, fontweight='bold')
-    pdf.savefig()
-    plt.close()
-    
     # Gráfico de quantidades
-    plt.figure(figsize=(11, 6))
+    ax_graph = fig.add_subplot(212)
     
     df_quantidades['Qtde Clientes'] = df_quantidades['Qtde Clientes'].astype(int)
     df_quantidades['Qtde Vendedores'] = df_quantidades['Qtde Vendedores'].astype(int)
     df_quantidades['Qtde Produtos'] = df_quantidades['Qtde Produtos'].astype(int)
     
-    plt.plot(df_quantidades['Mês'], df_quantidades['Qtde Clientes'], marker='o', label='Clientes')
-    plt.plot(df_quantidades['Mês'], df_quantidades['Qtde Vendedores'], marker='s', label='Vendedores')
-    plt.plot(df_quantidades['Mês'], df_quantidades['Qtde Produtos'], marker='^', label='Produtos')
+    ax_graph.plot(df_quantidades['Mês'], df_quantidades['Qtde Clientes'], marker='o', label='Clientes')
+    ax_graph.plot(df_quantidades['Mês'], df_quantidades['Qtde Vendedores'], marker='s', label='Vendedores')
+    ax_graph.plot(df_quantidades['Mês'], df_quantidades['Qtde Produtos'], marker='^', label='Produtos')
     
-    plt.title('Evolução Mensal das Quantidades', fontweight='bold')
-    plt.xlabel('Mês')
-    plt.ylabel('Quantidade')
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend()
+    ax_graph.set_title('Evolução Mensal das Quantidades', fontweight='bold')
+    ax_graph.set_xlabel('Mês')
+    ax_graph.set_ylabel('Quantidade')
+    ax_graph.grid(True, linestyle='--', alpha=0.7)
+    ax_graph.legend()
     
     for i, row in df_quantidades.iterrows():
-        plt.text(row['Mês'], row['Qtde Clientes'], str(row['Qtde Clientes']), 
+        ax_graph.text(row['Mês'], row['Qtde Clientes'], str(row['Qtde Clientes']), 
                  ha='center', va='bottom')
-        plt.text(row['Mês'], row['Qtde Vendedores'], str(row['Qtde Vendedores']), 
+        ax_graph.text(row['Mês'], row['Qtde Vendedores'], str(row['Qtde Vendedores']), 
                  ha='center', va='bottom')
-        plt.text(row['Mês'], row['Qtde Produtos'], str(row['Qtde Produtos']), 
+        ax_graph.text(row['Mês'], row['Qtde Produtos'], str(row['Qtde Produtos']), 
                  ha='center', va='bottom')
     
-    pdf.savefig()
-    plt.close()
+    plt.tight_layout()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
     
-    # Seção 2: Totais com gráficos de barras
-    plt.figure(figsize=(11.69, 8.27))
+    # 3. Seção de Totais
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
     plt.text(0.5, 0.95, '2. Análise de Totais', 
              ha='center', va='center', fontsize=14, fontweight='bold')
     plt.axis('off')
-    pdf.savefig()
-    plt.close()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
 
-    # Preparar dados para os gráficos
-    meses_graf = df_totais['Mês']
-    
     # Função para formatar os valores
     def formatar_valor(valor, tipo):
         if pd.isna(valor):
@@ -248,8 +250,9 @@ with PdfPages(output_pdf) as pdf:
             return f"{valor:,.2f}%".replace('.', ',')
         return str(valor)
 
-    # Tabela de totais com formatação personalizada
-    fig, ax = plt.subplots(figsize=(11, 4))
+    # Tabela de totais
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
+    ax = fig.add_subplot(111)
     ax.axis('tight')
     ax.axis('off')
     
@@ -281,91 +284,59 @@ with PdfPages(output_pdf) as pdf:
                       cellLoc='center')
     
     tabela.auto_set_font_size(False)
-    tabela.set_fontsize(10)
+    tabela.set_fontsize(FONT_SIZE)
     tabela.scale(1, 1.5)
     
     for (i, j), cell in tabela.get_celld().items():
         if i == 0:
             cell.set_text_props(fontweight='bold')
-            cell.set_facecolor('#f2f2f2')
+            cell.set_facecolor('#e6e6e6')
     
     plt.title('Totais por Mês', y=1.08, fontweight='bold')
-    pdf.savefig()
-    plt.close()
+    plt.tight_layout()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
 
-    # Gráfico de Tonelagem (kg)
-    if 'total_tonelagem' in df_totais.columns:
-        plt.figure(figsize=(11, 6))
-        valores = df_totais['total_tonelagem']
-        barras = plt.bar(meses_graf, valores, color='#1f77b4')
+    # Gráficos individuais para cada métrica
+    for i, (col, titulo, unidade, tipo) in enumerate([
+        ('total_tonelagem', 'Tonelagem Total', 'kg', 'tonelagem'),
+        ('total_faturamento', 'Faturamento Total', 'R$', 'faturamento'),
+        ('total_margem', 'Margem Total', '%', 'margem')
+    ]):
+        if col in df_totais.columns:
+            fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
+            ax = fig.add_subplot(111)
+            
+            valores = df_totais[col]
+            barras = ax.bar(df_totais['Mês'], valores, color=['#1f77b4', '#2ca02c', '#ff7f0e'][i % 3])
+            
+            ax.set_title(titulo, fontweight='bold')
+            ax.set_xlabel('Mês')
+            ax.set_ylabel(unidade)
+            ax.grid(True, linestyle='--', alpha=0.7, axis='y')
+            
+            # Adicionar valores nas barras
+            for barra in barras:
+                height = barra.get_height()
+                ax.text(barra.get_x() + barra.get_width()/2., height,
+                        formatar_valor(height, tipo),
+                        ha='center', va='bottom')
+            
+            plt.tight_layout()
+            pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+            plt.close(fig)
         
-        plt.title('Tonelagem Total (kg)', fontweight='bold')
-        plt.xlabel('Mês')
-        plt.ylabel('Kg')
-        plt.grid(True, linestyle='--', alpha=0.7, axis='y')
-        
-        # Adicionar valores nas barras
-        for barra in barras:
-            height = barra.get_height()
-            plt.text(barra.get_x() + barra.get_width()/2., height,
-                    formatar_valor(height, 'tonelagem'),
-                    ha='center', va='bottom')
-        
-        pdf.savefig()
-        plt.close()
-
-    # Gráfico de Faturamento (R$)
-    if 'total_faturamento' in df_totais.columns:
-        plt.figure(figsize=(11, 6))
-        valores = df_totais['total_faturamento']
-        barras = plt.bar(meses_graf, valores, color='#2ca02c')
-        
-        plt.title('Faturamento Total', fontweight='bold')
-        plt.xlabel('Mês')
-        plt.ylabel('Valor (R$)')
-        plt.grid(True, linestyle='--', alpha=0.7, axis='y')
-        
-        # Adicionar valores nas barras
-        for barra in barras:
-            height = barra.get_height()
-            plt.text(barra.get_x() + barra.get_width()/2., height,
-                    formatar_valor(height, 'faturamento'),
-                    ha='center', va='bottom')
-        
-        pdf.savefig()
-        plt.close()
-
-    # Gráfico de Margem (%)
-    if 'total_margem' in df_totais.columns:
-        plt.figure(figsize=(11, 6))
-        valores = df_totais['total_margem']
-        barras = plt.bar(meses_graf, valores, color='#ff7f0e')
-        
-        plt.title('Margem Total', fontweight='bold')
-        plt.xlabel('Mês')
-        plt.ylabel('Percentual (%)')
-        plt.grid(True, linestyle='--', alpha=0.7, axis='y')
-        
-        # Adicionar valores nas barras
-        for barra in barras:
-            height = barra.get_height()
-            plt.text(barra.get_x() + barra.get_width()/2., height,
-                    formatar_valor(height, 'margem'),
-                    ha='center', va='bottom')
-        
-        pdf.savefig()
-        plt.close()
-        
-    # Seção 3: Tabela consolidada simplificada
-    plt.figure(figsize=(11.69, 8.27))
+    # 4. Seção Top 20 vs Resto
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
     plt.text(0.5, 0.95, '3. Análise Top 20 Produtos vs Resto', 
              ha='center', va='center', fontsize=14, fontweight='bold')
     plt.axis('off')
-    pdf.savefig()
-    plt.close()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
 
-    # Criar figura para a tabela
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # Tabela comparativa
+    fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
+    ax = fig.add_subplot(111)
     ax.axis('off')
     
     # Preparar dados
@@ -435,7 +406,7 @@ with PdfPages(output_pdf) as pdf:
 
     # Estilização
     tabela.auto_set_font_size(False)
-    tabela.set_fontsize(10)
+    tabela.set_fontsize(FONT_SIZE)
     tabela.scale(1, 1.5)
 
     # Estilo para cabeçalhos
@@ -447,13 +418,18 @@ with PdfPages(output_pdf) as pdf:
             cell.set_facecolor('#f9f9f9')
 
     plt.tight_layout()
-    pdf.savefig()
-    plt.close()
+    pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+    plt.close(fig)
     
     # Gráficos comparativos
-    for tipo in ['ton', 'fat', 'mar']:
+    for tipo, titulo, unidade, fmt in [
+        ('ton', 'Tonelagem - Top 20 vs Resto', 'kg', 'tonelagem'),
+        ('fat', 'Faturamento - Top 20 vs Resto', 'R$', 'faturamento'),
+        ('mar', 'Margem - Top 20 vs Resto', '%', 'margem')
+    ]:
         if f'top20_{tipo}' in dados_consolidados[meses[0]]:
-            plt.figure(figsize=(11, 6))
+            fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
+            ax = fig.add_subplot(111)
             
             # Preparar dados
             labels = meses
@@ -464,36 +440,24 @@ with PdfPages(output_pdf) as pdf:
             bar_width = 0.35
             x = range(len(meses))
             
-            plt.bar(x, top20, bar_width, label='Top 20', color='#1f77b4')
-            plt.bar([i + bar_width for i in x], resto, bar_width, label='Resto', color='#ff7f0e')
+            ax.bar(x, top20, bar_width, label='Top 20', color='#1f77b4')
+            ax.bar([i + bar_width for i in x], resto, bar_width, label='Resto', color='#ff7f0e')
             
-            # Configurações
-            if tipo == 'ton':
-                titulo = 'Tonelagem - Top 20 vs Resto'
-                unidade = 'kg'
-                formato = lambda x: formatar_valor(x, 'tonelagem')
-            elif tipo == 'fat':
-                titulo = 'Faturamento - Top 20 vs Resto'
-                unidade = 'R$'
-                formato = lambda x: formatar_valor(x, 'faturamento')
-            else:
-                titulo = 'Margem - Top 20 vs Resto'
-                unidade = '%'
-                formato = lambda x: formatar_valor(x, 'margem')
-            
-            plt.title(titulo, fontweight='bold')
-            plt.xlabel('Mês')
-            plt.ylabel(unidade)
-            plt.xticks([i + bar_width/2 for i in x], meses)
-            plt.legend()
-            plt.grid(True, linestyle='--', alpha=0.7, axis='y')
+            ax.set_title(titulo, fontweight='bold')
+            ax.set_xlabel('Mês')
+            ax.set_ylabel(unidade)
+            ax.set_xticks([i + bar_width/2 for i in x])
+            ax.set_xticklabels(meses)
+            ax.legend()
+            ax.grid(True, linestyle='--', alpha=0.7, axis='y')
             
             # Adicionar valores
             for i in x:
-                plt.text(i, top20[i], formato(top20[i]), ha='center', va='bottom')
-                plt.text(i + bar_width, resto[i], formato(resto[i]), ha='center', va='bottom')
+                ax.text(i, top20[i], formatar_valor(top20[i], fmt), ha='center', va='bottom')
+                ax.text(i + bar_width, resto[i], formatar_valor(resto[i], fmt), ha='center', va='bottom')
             
-            pdf.savefig()
-            plt.close()
+            plt.tight_layout()
+            pdf.savefig(fig, bbox_inches='tight', dpi=DPI)
+            plt.close(fig)
 
 print(f"\nRelatório completo gerado com sucesso em: {output_pdf}")
