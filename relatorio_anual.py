@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import PyPDF2
 import re
+from datetime import datetime
 
 # Configurações iniciais
 caminho_base = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
@@ -106,7 +107,7 @@ def formatar_valor(valor, tipo):
     elif tipo == 'faturamento':
         return f"R${valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     elif tipo == 'margem':
-        return f"{valor:,.2f}%".replace('.', ',')
+        return f"{valor:.2f}%".replace('.', ',')
     return str(valor)
 
 # Criar PDF
@@ -117,12 +118,15 @@ with PdfPages(output_pdf) as pdf:
         'figure.constrained_layout.use': True
     })
     
-    # Página de título
+    # Página de título com data e hora de geração
+    data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
     plt.text(0.5, 0.6, 'Relatório Consolidado de Vendas', 
              ha='center', va='center', fontsize=16, fontweight='bold')
     plt.text(0.5, 0.5, f'Período: Maio a Junho de {ano}', 
              ha='center', va='center', fontsize=12)
+    plt.text(0.5, 0.4, f'Gerado em: {data_hora}', 
+             ha='center', va='center', fontsize=10)
     plt.axis('off')
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
@@ -133,11 +137,14 @@ with PdfPages(output_pdf) as pdf:
              ha='center', va='center', fontsize=14, fontweight='bold', transform=fig.transFigure)
     plt.axis('off')
     
-    # Tabela de quantidades
+    # Tabela de quantidades (valores inteiros)
     ax_table = fig.add_axes([0.1, 0.55, 0.8, 0.35])
     ax_table.axis('off')
     
     df_quantidades = pd.DataFrame.from_dict(dados_consolidados, orient='index')[['Qtde Clientes', 'Qtde Vendedores', 'Qtde Produtos']]
+    # Converter para inteiros
+    df_quantidades = df_quantidades.astype(int)
+    
     tabela = ax_table.table(
         cellText=df_quantidades.reset_index().values,
         colLabels=['Mês'] + df_quantidades.columns.tolist(),
@@ -153,12 +160,24 @@ with PdfPages(output_pdf) as pdf:
             cell.set_text_props(fontweight='bold')
             cell.set_facecolor('#f2f2f2')
     
-    # Gráfico de quantidades
+    # Gráfico de quantidades com valores nos pontos
     ax_graph = fig.add_axes([0.1, 0.1, 0.8, 0.35])
-    df_quantidades.plot(ax=ax_graph, marker='o')
+    lines = df_quantidades.plot(ax=ax_graph, marker='o')
     ax_graph.set_title('Evolução Mensal das Quantidades', fontweight='bold')
     ax_graph.grid(True, linestyle='--', alpha=0.7)
     ax_graph.legend()
+    
+    # Adicionar valores nos pontos do gráfico
+    for line in lines.get_lines():
+        x = line.get_xdata()
+        y = line.get_ydata()
+        for xi, yi in zip(x, y):
+            ax_graph.text(xi, yi, f'{int(yi)}', 
+                         ha='center', va='bottom', fontsize=FONT_SIZE)
+    
+    # Ajustar limite superior para não cortar os valores
+    ylim = ax_graph.get_ylim()
+    ax_graph.set_ylim(ylim[0], ylim[1] * 1.1)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
@@ -169,7 +188,7 @@ with PdfPages(output_pdf) as pdf:
              ha='center', va='center', fontsize=14, fontweight='bold', transform=fig.transFigure)
     plt.axis('off')
     
-    # Tabela de totais
+    # Tabela de totais (corrigir formatação de margem)
     ax_table = fig.add_axes([0.1, 0.55, 0.8, 0.35])
     ax_table.axis('off')
     
@@ -197,9 +216,9 @@ with PdfPages(output_pdf) as pdf:
             cell.set_text_props(fontweight='bold')
             cell.set_facecolor('#e6e6e6')
     
-    # Gráfico de faturamento
+    # Gráfico de faturamento com espaço superior
     ax_graph = fig.add_axes([0.1, 0.1, 0.8, 0.35])
-    df_totais['total_faturamento'].plot(kind='bar', ax=ax_graph, color='#2ca02c')
+    bars = df_totais['total_faturamento'].plot(kind='bar', ax=ax_graph, color='#2ca02c')
     ax_graph.set_title('Faturamento Total', fontweight='bold')
     ax_graph.set_ylabel('R$')
     ax_graph.grid(True, linestyle='--', alpha=0.7, axis='y')
@@ -208,6 +227,10 @@ with PdfPages(output_pdf) as pdf:
     for i, valor in enumerate(df_totais['total_faturamento']):
         ax_graph.text(i, valor, formatar_valor(valor, 'faturamento'), 
                      ha='center', va='bottom')
+    
+    # Ajustar limite superior
+    ylim = ax_graph.get_ylim()
+    ax_graph.set_ylim(ylim[0], ylim[1] * 1.1)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
@@ -218,7 +241,7 @@ with PdfPages(output_pdf) as pdf:
              ha='center', va='center', fontsize=14, fontweight='bold', transform=fig.transFigure)
     plt.axis('off')
     
-    # Gráfico de tonelagem
+    # Gráfico de tonelagem com espaço superior
     ax_graph1 = fig.add_axes([0.1, 0.55, 0.8, 0.35])
     df_totais['total_tonelagem'].plot(kind='bar', ax=ax_graph1, color='#1f77b4')
     ax_graph1.set_title('Tonelagem Total', fontweight='bold')
@@ -230,7 +253,11 @@ with PdfPages(output_pdf) as pdf:
         ax_graph1.text(i, valor, formatar_valor(valor, 'tonelagem'), 
                       ha='center', va='bottom')
     
-    # Gráfico de margem
+    # Ajustar limite superior
+    ylim = ax_graph1.get_ylim()
+    ax_graph1.set_ylim(ylim[0], ylim[1] * 1.1)
+    
+    # Gráfico de margem com espaço superior
     ax_graph2 = fig.add_axes([0.1, 0.1, 0.8, 0.35])
     df_totais['total_margem'].plot(kind='bar', ax=ax_graph2, color='#ff7f0e')
     ax_graph2.set_title('Margem Total', fontweight='bold')
@@ -241,6 +268,10 @@ with PdfPages(output_pdf) as pdf:
     for i, valor in enumerate(df_totais['total_margem']):
         ax_graph2.text(i, valor, formatar_valor(valor, 'margem'), 
                       ha='center', va='bottom')
+    
+    # Ajustar limite superior
+    ylim = ax_graph2.get_ylim()
+    ax_graph2.set_ylim(ylim[0], ylim[1] * 1.1)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
@@ -282,7 +313,7 @@ with PdfPages(output_pdf) as pdf:
                 cell.set_text_props(fontweight='bold')
                 cell.set_facecolor('#e6e6e6')
         
-        # Gráfico
+        # Gráfico com espaço superior
         ax_graph = fig.add_axes([0.1, 0.1, 0.8, 0.35])
         
         top20 = [dados_consolidados[mes].get(f'top20_{tipo}', 0) for mes in meses]
@@ -307,6 +338,10 @@ with PdfPages(output_pdf) as pdf:
                          ha='center', va='bottom', fontsize=FONT_SIZE-1)
             ax_graph.text(i + bar_width, resto[i], formatar_valor(resto[i], fmt), 
                          ha='center', va='bottom', fontsize=FONT_SIZE-1)
+        
+        # Ajustar limite superior
+        ylim = ax_graph.get_ylim()
+        ax_graph.set_ylim(ylim[0], ylim[1] * 1.1)
         
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
