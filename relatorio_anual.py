@@ -9,7 +9,7 @@ from datetime import datetime
 
 # Configurações iniciais
 caminho_base = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
-meses = ['Maio', 'Junho']
+meses = ['Maio', 'Junho', 'Julho']
 ano = '2025'
 data_geracao = datetime.now().strftime('%Y-%m-%d')
 output_pdf = os.path.join(os.path.expanduser('~'), 'Downloads', f'Relatorio_Consolidado_Vendas_{data_geracao}.pdf')
@@ -124,7 +124,7 @@ with PdfPages(output_pdf) as pdf:
     fig = plt.figure(figsize=(PAGE_WIDTH, PAGE_HEIGHT))
     plt.text(0.5, 0.6, 'Relatório de Vendas', 
              ha='center', va='center', fontsize=16, fontweight='bold')
-    plt.text(0.5, 0.5, f'Período: Maio a Junho de {ano}', 
+    plt.text(0.5, 0.5, f'Período: {meses[0]} a {meses[-1]} de {ano}', 
              ha='center', va='center', fontsize=12)
     plt.text(0.5, 0.4, f'Gerado em: {data_hora}', 
              ha='center', va='center', fontsize=10)
