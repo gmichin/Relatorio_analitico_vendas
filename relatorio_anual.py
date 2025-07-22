@@ -14,22 +14,42 @@ resultados = {}
 base_path = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
 meses = ["Maio", "Junho", "Julho"]
 
+def limpar_numero(texto, is_margem=False):
+    """Converte strings numéricas com símbolos em floats"""
+    if not texto:
+        return 0.0
+    
+    if is_margem:
+        # Para margens, apenas remove o % e converte (já está com ponto decimal)
+        texto = texto.replace('%', '').strip()
+        try:
+            return float(texto)
+        except ValueError:
+            return 0.0
+    else:
+        # Para outros valores, remove R$, pontos de milhar e substitui vírgula decimal
+        texto = texto.replace('R$', '').replace('.', '').replace(',', '.').strip()
+        try:
+            return float(texto)
+        except ValueError:
+            return 0.0
+
 def extrair_valores(tabela_df):
     """Extrai os valores da tabela formatada com base na estrutura específica"""
     dados = {}
     texto_tabela = tabela_df.to_string(index=False, header=False)
     
-    # Extrair estatísticas gerais
-    dados['qtde_clientes'] = re.search(r'Qtde Clientes\s+(\d+)', texto_tabela).group(1)
-    dados['qtde_vendedores'] = re.search(r'Qtde Vendedores\s+(\d+)', texto_tabela).group(1)
-    dados['qtde_produtos'] = re.search(r'Qtde Produtos\s+(\d+)', texto_tabela).group(1)
+    # Extrair estatísticas gerais (valores inteiros)
+    dados['qtde_clientes'] = int(re.search(r'Qtde Clientes\s+(\d+)', texto_tabela).group(1))
+    dados['qtde_vendedores'] = int(re.search(r'Qtde Vendedores\s+(\d+)', texto_tabela).group(1))
+    dados['qtde_produtos'] = int(re.search(r'Qtde Produtos\s+(\d+)', texto_tabela).group(1))
     
     # Função auxiliar para extrair valores entre parênteses
     def extrair_parenteses(texto, padrao):
-        matches = re.findall(padrao + r'.*?\(([^)]+)\)', texto, re.DOTALL)
+        matches = re.findall(padrao + r'.*?\(([^)]+)\)', texto_tabela, re.DOTALL)
         return matches[-1] if matches else None
     
-    # Extrair tonelagem
+    # Extrair tonelagem (3 decimais)
     tonelagem_total = re.search(r'Tonelagem.*?Total:\s*([\d.,]+)', texto_tabela, re.DOTALL)
     if tonelagem_total:
         # Primeiro valor entre parênteses após porcentagem é Outros
@@ -38,12 +58,12 @@ def extrair_valores(tabela_df):
         top20_ton = extrair_parenteses(texto_tabela, r'Tonelagem.*?\d+\.\d+%.*?\d+\.\d+%')
         
         dados['tonelagem'] = {
-            'total': f"Total: {tonelagem_total.group(1)}",
-            'top_20': top20_ton if top20_ton else "",
-            'outros': outros_ton if outros_ton else ""
+            'total': round(limpar_numero(tonelagem_total.group(1)), 3),
+            'top_20': round(limpar_numero(top20_ton) if top20_ton else 0.0, 3),
+            'outros': round(limpar_numero(outros_ton) if outros_ton else 0.0, 3)
         }
     
-    # Extrair faturamento
+    # Extrair faturamento (2 decimais)
     faturamento_total = re.search(r'Faturamento.*?Total:\s*([R\$ \d.,]+)', texto_tabela, re.DOTALL)
     if faturamento_total:
         # Primeiro valor entre parênteses após porcentagem é Outros
@@ -52,12 +72,12 @@ def extrair_valores(tabela_df):
         top20_fat = extrair_parenteses(texto_tabela, r'Faturamento.*?\d+\.\d+%.*?\d+\.\d+%')
         
         dados['faturamento'] = {
-            'total': f"Total: {faturamento_total.group(1).strip()}",
-            'top_20': top20_fat.strip() if top20_fat else "",
-            'outros': outros_fat.strip() if outros_fat else ""
+            'total': round(limpar_numero(faturamento_total.group(1)), 2),
+            'top_20': round(limpar_numero(top20_fat) if top20_fat else 0.0, 2),
+            'outros': round(limpar_numero(outros_fat) if outros_fat else 0.0, 2)
         }
     
-    # Extrair margem - nova abordagem baseada no alinhamento
+    # Extrair margem (valores já estão com ponto decimal)
     margem_total = re.search(r'Margem.*?Total:\s*([\d.,]+%)', texto_tabela, re.DOTALL)
     if margem_total:
         # Encontrar todos os valores de margem com seus espaçamentos
@@ -68,9 +88,9 @@ def extrair_valores(tabela_df):
             margens.sort(key=lambda x: len(x[0]))
             
             dados['margem'] = {
-                'total': f"Total: {margem_total.group(1)}",
-                'top_20': margens[0][1],  # Menos espaços
-                'outros': margens[1][1]   # Mais espaços
+                'total': round(limpar_numero(margem_total.group(1), True), 2),
+                'top_20': round(limpar_numero(margens[0][1], True), 2),
+                'outros': round(limpar_numero(margens[1][1], True), 2)
             }
     
     return dados
