@@ -207,7 +207,6 @@ with PdfPages(pdf_path) as pdf:
     def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False):
         ax = fig.add_subplot(3, 1, posicao)
         ax.axis('off')
-        ax.set_title(titulo, pad=10)  # Adiciona padding ao título
         
         # Formata os dados (mantido igual)
         formatted_data = []
@@ -241,6 +240,29 @@ with PdfPages(pdf_path) as pdf:
         
         return fig
     
+    # Função para adicionar gráfico de linhas
+    def add_grafico_linhas(fig, posicao, dados_clientes, dados_vendedores, dados_produtos, meses_validas):
+        ax = fig.add_subplot(3, 1, posicao)
+        ax.clear()
+        
+        x = np.arange(len(meses_validas))
+        ax.plot(x, dados_clientes, marker='o', label='Clientes', color='skyblue')
+        ax.plot(x, dados_vendedores, marker='s', label='Vendedores', color='lightgreen')
+        ax.plot(x, dados_produtos, marker='^', label='Produtos', color='salmon')
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(meses_validas)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.legend()
+        
+        # Adicionar valores nos pontos
+        for i, (c, v, p) in enumerate(zip(dados_clientes, dados_vendedores, dados_produtos)):
+            ax.text(i, c, f"{c}", ha='center', va='bottom', fontsize=7)
+            ax.text(i, v, f"{v}", ha='center', va='bottom', fontsize=7)
+            ax.text(i, p, f"{p}", ha='center', va='bottom', fontsize=7)
+        
+        return fig
+
     # Função add_grafico atualizada
     def add_grafico(fig, posicao, dados, titulo, cor, is_percent=False):
         ax = fig.add_subplot(3, 1, posicao)
@@ -280,45 +302,42 @@ with PdfPages(pdf_path) as pdf:
     # ========== PÁGINA 2 ==========
     fig = nova_pagina("1. Quantidades")
     
-    # Tabela de quantidades
+    # Tabela de quantidades (formato atualizado)
     table_data = [
         [dados[mes]['qtde_clientes'] for mes in meses_validas],
         [dados[mes]['qtde_vendedores'] for mes in meses_validas],
         [dados[mes]['qtde_produtos'] for mes in meses_validas]
     ]
-    fig = add_tabela(fig, 1, table_data, "Quantidades", 
-                    ['Clientes', 'Vendedores', 'Produtos'], meses_validas)
     
-    # Gráfico de clientes
-    fig = add_grafico(fig, 2, table_data[0], "Quantidade de Clientes", 'skyblue')
+    # Transpondo a tabela para ter meses nas linhas
+    table_data_transposed = list(zip(*table_data))
+    fig = add_tabela(fig, 1, table_data_transposed, "", 
+                    meses_validas, ['Qtde Clientes', 'Qtde Vendedores', 'Qtde Produtos'])
     
-    # Gráfico de vendedores
-    fig = add_grafico(fig, 3, table_data[1], "Quantidade de Vendedores", 'lightgreen')
+    # Gráfico de linhas combinado
+    fig = add_grafico_linhas(fig, 2, 
+                            [dados[mes]['qtde_clientes'] for mes in meses_validas],
+                            [dados[mes]['qtde_vendedores'] for mes in meses_validas],
+                            [dados[mes]['qtde_produtos'] for mes in meses_validas],
+                            meses_validas)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
     # ========== PÁGINA 3 ==========
-    fig = nova_pagina("1. Quantidades", is_continuacao=True, num_itens=1)
-
-    # Gráfico de produtos
-    fig = add_grafico(fig, 1, table_data[2], "Quantidade de Produtos", 'salmon')
-
-    pdf.savefig(fig, bbox_inches='tight')
-    plt.close()
-    
-    # ========== PÁGINA 4 ==========
     fig = nova_pagina("2. Totais")
     
-    # Tabela de totais
+    # Tabela de totais (formato atualizado)
     table_data = [
         [dados[mes]['tonelagem']['total'] for mes in meses_validas],
         [dados[mes]['faturamento']['total'] for mes in meses_validas],
         [dados[mes]['margem']['total'] for mes in meses_validas]
     ]
-    fig = add_tabela(fig, 1, table_data, "Totais", 
-                    ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'], 
-                    meses_validas)
+    
+    # Transpondo a tabela para ter meses nas linhas
+    table_data_transposed = list(zip(*table_data))
+    fig = add_tabela(fig, 1, table_data_transposed, "", 
+                    meses_validas, ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'])
     
     # Gráfico de tonelagem
     fig = add_grafico(fig, 2, table_data[0], "Tonelagem Total (kg)", 'skyblue')
@@ -329,7 +348,7 @@ with PdfPages(pdf_path) as pdf:
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
-    # ========== PÁGINA 5 ==========
+    # ========== PÁGINA 4 ==========
     fig = nova_pagina("2. Totais", is_continuacao=True, num_itens=1)
 
     # Gráfico de margem
@@ -338,37 +357,30 @@ with PdfPages(pdf_path) as pdf:
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
-    # ========== PÁGINA 6 ==========
+    # ========== PÁGINA 5 ==========
     fig = nova_pagina("3. Top 20 vs Outros")
     
-    # Tabela tonelagem (Top 20 vs Outros)
-    table_data_ton = [
-        [dados[mes]['tonelagem']['top_20'] for mes in meses_validas],
-        [dados[mes]['tonelagem']['outros'] for mes in meses_validas]
-    ]
-    fig = add_tabela(fig, 1, table_data_ton, "Tonelagem (kg) - Top 20 vs Outros", 
-                    ['Top 20', 'Outros'], meses_validas)
+    # Preparar dados para a tabela consolidada
+    table_data_consolidada = []
+    for mes in meses_validas:
+        row = [
+            dados[mes]['tonelagem']['top_20'],
+            dados[mes]['tonelagem']['outros'],
+            dados[mes]['faturamento']['top_20'],
+            dados[mes]['faturamento']['outros'],
+            dados[mes]['margem']['top_20'],
+            dados[mes]['margem']['outros']
+        ]
+        table_data_consolidada.append(row)
     
-    # Tabela faturamento (Top 20 vs Outros)
-    table_data_fat = [
-        [dados[mes]['faturamento']['top_20'] for mes in meses_validas],
-        [dados[mes]['faturamento']['outros'] for mes in meses_validas]
-    ]
-    fig = add_tabela(fig, 2, table_data_fat, "Faturamento (R$) - Top 20 vs Outros", 
-                    ['Top 20', 'Outros'], meses_validas, is_money=True)
-    
-    # Tabela margem (Top 20 vs Outros)
-    table_data_marg = [
-        [dados[mes]['margem']['top_20'] for mes in meses_validas],
-        [dados[mes]['margem']['outros'] for mes in meses_validas]
-    ]
-    fig = add_tabela(fig, 3, table_data_marg, "Margem (%) - Top 20 vs Outros", 
-                    ['Top 20', 'Outros'], meses_validas, is_percent=True)
+    fig = add_tabela(fig, 1, table_data_consolidada, "", 
+                    meses_validas, 
+                    ['Top20_ton', 'Outros_ton', 'Top20_fat', 'Outros_fat', 'Top20_mar', 'Outros_mar'])
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
-    # ========== PÁGINA 7 ==========
+    # ========== PÁGINA 6 ==========
     fig = nova_pagina("3. Top 20 vs Outros", is_continuacao=True)
     
     # Gráfico tonelagem (Top 20 vs Outros)
@@ -376,8 +388,8 @@ with PdfPages(pdf_path) as pdf:
     x = np.arange(len(meses_validas))
     
     ax1 = fig.add_subplot(3, 1, 1)
-    bars1 = ax1.bar(x - width/2, table_data_ton[0], width, label='Top 20', color='#1f77b4')
-    bars2 = ax1.bar(x + width/2, table_data_ton[1], width, label='Outros', color='#ff7f0e')
+    bars1 = ax1.bar(x - width/2, [dados[mes]['tonelagem']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
+    bars2 = ax1.bar(x + width/2, [dados[mes]['tonelagem']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
     ax1.set_title('Tonelagem (kg) - Top 20 vs Outros')
     ax1.set_xticks(x)
     ax1.set_xticklabels(meses_validas)
@@ -393,8 +405,8 @@ with PdfPages(pdf_path) as pdf:
     
     # Gráfico faturamento (Top 20 vs Outros)
     ax2 = fig.add_subplot(3, 1, 2)
-    bars1 = ax2.bar(x - width/2, table_data_fat[0], width, label='Top 20', color='#1f77b4')
-    bars2 = ax2.bar(x + width/2, table_data_fat[1], width, label='Outros', color='#ff7f0e')
+    bars1 = ax2.bar(x - width/2, [dados[mes]['faturamento']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
+    bars2 = ax2.bar(x + width/2, [dados[mes]['faturamento']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
     ax2.set_title('Faturamento (R$) - Top 20 vs Outros')
     ax2.set_xticks(x)
     ax2.set_xticklabels(meses_validas)
@@ -410,8 +422,8 @@ with PdfPages(pdf_path) as pdf:
     
     # Gráfico margem (Top 20 vs Outros)
     ax3 = fig.add_subplot(3, 1, 3)
-    bars1 = ax3.bar(x - width/2, table_data_marg[0], width, label='Top 20', color='#1f77b4')
-    bars2 = ax3.bar(x + width/2, table_data_marg[1], width, label='Outros', color='#ff7f0e')
+    bars1 = ax3.bar(x - width/2, [dados[mes]['margem']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
+    bars2 = ax3.bar(x + width/2, [dados[mes]['margem']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
     ax3.set_title('Margem (%) - Top 20 vs Outros')
     ax3.set_xticks(x)
     ax3.set_xticklabels(meses_validas)
