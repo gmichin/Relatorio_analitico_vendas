@@ -145,223 +145,285 @@ ultimo_mes = meses[-1]
 downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
 pdf_path = os.path.join(downloads_path, f"Relatório Analítico de Vendas {primeiro_mes} a {ultimo_mes} de {ano}.pdf")
 
+# Configurações padrão
+plt.rcParams.update({
+    'figure.constrained_layout.use': True,
+    'figure.constrained_layout.h_pad': 0.5,
+    'figure.constrained_layout.w_pad': 0.5,
+    'figure.constrained_layout.hspace': 0.2,
+    'figure.constrained_layout.wspace': 0.2
+})  
+
+# Tamanhos padrão
+fig_size = (8.27, 11.69) 
+graph_size = (6, 3) 
+table_size = (6, 2) 
+
+# Margens padrão
+left_margin = 0.1
+right_margin = 0.9
+bottom_margin = 0.1
+top_margin = 0.9
+
 # Criar o PDF
 with PdfPages(pdf_path) as pdf:
-    # Configurações gerais
-    plt.rcParams['font.size'] = 10
-    
     # Página 1 - Cabeçalho
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))  # A4
+    fig = plt.figure(figsize=fig_size)
     fig.patch.set_visible(False)
+    ax = fig.add_subplot(111)
     ax.axis('off')
     
-    # Título principal
+    # Título principal centralizado
     titulo = f"Relatório Analítico de Vendas\n{primeiro_mes} a {ultimo_mes} de {ano}"
-    ax.text(0.5, 0.9, titulo, ha='center', va='center', fontsize=16, fontweight='bold')
+    ax.text(0.5, 0.6, titulo, ha='center', va='center', fontsize=16, fontweight='bold')
     
     # Data e hora de geração
     data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    ax.text(0.5, 0.85, f"Gerado em: {data_hora}", ha='center', va='center', fontsize=10)
+    ax.text(0.5, 0.4, f"Gerado em: {data_hora}", ha='center', va='center', fontsize=10)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
-    # Página 2 - Quantidades
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))
-    fig.patch.set_visible(False)
-    ax.axis('off')
+    # Função para criar uma nova página com layout padronizado
+    def nova_pagina(titulo_principal, is_continuacao=False, num_itens=3):
+        fig = plt.figure(figsize=fig_size, constrained_layout=True)
+        if is_continuacao:
+            fig.suptitle(f"{titulo_principal} (continuação)", fontweight='bold', y=0.98)
+        else:
+            fig.suptitle(titulo_principal, fontweight='bold', y=0.98)
+        
+        # Ajusta o espaçamento baseado no número de itens
+        if num_itens < 3:
+            fig.subplots_adjust(hspace=0.5)  # Aumenta o espaçamento vertical
+        
+        # Adiciona subplots vazios para manter o mesmo tamanho de página
+        for i in range(num_itens, 3):
+            ax = fig.add_subplot(3, 1, i+1)
+            ax.axis('off')
+        
+        return fig
     
-    # Título da seção
-    ax.text(0.1, 0.95, "1. Quantidades", fontsize=14, fontweight='bold')
+    # Função add_tabela atualizada
+    def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False):
+        ax = fig.add_subplot(3, 1, posicao)
+        ax.axis('off')
+        ax.set_title(titulo, pad=10)  # Adiciona padding ao título
+        
+        # Formata os dados (mantido igual)
+        formatted_data = []
+        for row in dados:
+            formatted_row = []
+            for val in row:
+                if is_money:
+                    formatted_row.append(f"R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                elif is_percent:
+                    formatted_row.append(f"{val:.2f}%")
+                elif isinstance(val, float):
+                    if 'Tonelagem' in titulo:
+                        formatted_row.append(f"{val:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    else:
+                        formatted_row.append(f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                else:
+                    formatted_row.append(f"{val:,}".replace(",", "."))
+            formatted_data.append(formatted_row)
+        
+        # Ajuste no bbox da tabela
+        table = ax.table(cellText=formatted_data, 
+                       rowLabels=row_labels, 
+                       colLabels=col_labels,
+                       loc='center', 
+                       cellLoc='center',
+                       bbox=[0.1, 0.1, 0.8, 0.7])  # Ajuste na altura (0.7 em vez de 0.8)
+        
+        table.auto_set_font_size(False)
+        table.set_fontsize(8)  # Fonte um pouco menor
+        table.scale(1, 1.3)   # Escala mais compacta
+        
+        return fig
+    
+    # Função add_grafico atualizada
+    def add_grafico(fig, posicao, dados, titulo, cor, is_percent=False):
+        ax = fig.add_subplot(3, 1, posicao)
+        ax.clear()  # Limpa qualquer conteúdo anterior
+        
+        # Restante do código mantido igual
+        x = np.arange(len(meses_validas))
+        width = 0.6
+        
+        bars = ax.bar(x, dados, width, color=cor)
+        ax.set_title(titulo, pad=10)  # Adiciona padding ao título
+        ax.set_xticks(x)
+        ax.set_xticklabels(meses_validas)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        # Adicionar valores nas barras (mantido igual)
+        for bar in bars:
+            height = bar.get_height()
+            if is_percent:
+                texto = f"{height:.2f}%"
+            elif isinstance(height, float):
+                if titulo.startswith('Tonelagem'):
+                    texto = f"{height:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                else:
+                    texto = f"{height:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            else:
+                texto = f"{height:,}".replace(",", ".")
+            
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                    texto, ha='center', va='bottom', fontsize=7)  # Fonte menor
+        
+        return fig
+    
+    # Lista de meses com dados válidos
+    meses_validas = [mes for mes in meses if mes in dados]
+    
+    # ========== PÁGINA 2 ==========
+    fig = nova_pagina("1. Quantidades")
     
     # Tabela de quantidades
-    col_labels = meses
-    row_labels = ['Clientes', 'Vendedores', 'Produtos']
-    
-    # Preparar dados da tabela diretamente do JSON gerado
     table_data = [
-        [dados[mes]['qtde_clientes'] for mes in meses if mes in dados],
-        [dados[mes]['qtde_vendedores'] for mes in meses if mes in dados],
-        [dados[mes]['qtde_produtos'] for mes in meses if mes in dados]
+        [dados[mes]['qtde_clientes'] for mes in meses_validas],
+        [dados[mes]['qtde_vendedores'] for mes in meses_validas],
+        [dados[mes]['qtde_produtos'] for mes in meses_validas]
     ]
+    fig = add_tabela(fig, 1, table_data, "Quantidades", 
+                    ['Clientes', 'Vendedores', 'Produtos'], meses_validas)
     
-    # Posicionar tabela
-    table = ax.table(cellText=table_data, 
-                    rowLabels=row_labels, 
-                    colLabels=col_labels,
-                    loc='center', 
-                    cellLoc='center',
-                    bbox=[0.1, 0.6, 0.8, 0.3])
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)
+    # Gráfico de clientes
+    fig = add_grafico(fig, 2, table_data[0], "Quantidade de Clientes", 'skyblue')
     
-    # Gráfico de linhas
-    ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.4])
-    for i, row in enumerate(table_data):
-        ax2.plot(col_labels, row, marker='o', label=row_labels[i])
+    # Gráfico de vendedores
+    fig = add_grafico(fig, 3, table_data[1], "Quantidade de Vendedores", 'lightgreen')
     
-    ax2.set_title('Evolução das Quantidades')
-    ax2.set_ylabel('Quantidade')
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # ========== PÁGINA 3 ==========
+    fig = nova_pagina("1. Quantidades", is_continuacao=True, num_itens=1)
+
+    # Gráfico de produtos
+    fig = add_grafico(fig, 1, table_data[2], "Quantidade de Produtos", 'salmon')
+
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # ========== PÁGINA 4 ==========
+    fig = nova_pagina("2. Totais")
+    
+    # Tabela de totais
+    table_data = [
+        [dados[mes]['tonelagem']['total'] for mes in meses_validas],
+        [dados[mes]['faturamento']['total'] for mes in meses_validas],
+        [dados[mes]['margem']['total'] for mes in meses_validas]
+    ]
+    fig = add_tabela(fig, 1, table_data, "Totais", 
+                    ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'], 
+                    meses_validas)
+    
+    # Gráfico de tonelagem
+    fig = add_grafico(fig, 2, table_data[0], "Tonelagem Total (kg)", 'skyblue')
+    
+    # Gráfico de faturamento
+    fig = add_grafico(fig, 3, table_data[1], "Faturamento Total (R$)", 'lightgreen')
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # ========== PÁGINA 5 ==========
+    fig = nova_pagina("2. Totais", is_continuacao=True, num_itens=1)
+
+    # Gráfico de margem
+    fig = add_grafico(fig, 1, table_data[2], "Margem Total (%)", 'salmon', is_percent=True)
+
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # ========== PÁGINA 6 ==========
+    fig = nova_pagina("3. Top 20 vs Outros")
+    
+    # Tabela tonelagem (Top 20 vs Outros)
+    table_data_ton = [
+        [dados[mes]['tonelagem']['top_20'] for mes in meses_validas],
+        [dados[mes]['tonelagem']['outros'] for mes in meses_validas]
+    ]
+    fig = add_tabela(fig, 1, table_data_ton, "Tonelagem (kg) - Top 20 vs Outros", 
+                    ['Top 20', 'Outros'], meses_validas)
+    
+    # Tabela faturamento (Top 20 vs Outros)
+    table_data_fat = [
+        [dados[mes]['faturamento']['top_20'] for mes in meses_validas],
+        [dados[mes]['faturamento']['outros'] for mes in meses_validas]
+    ]
+    fig = add_tabela(fig, 2, table_data_fat, "Faturamento (R$) - Top 20 vs Outros", 
+                    ['Top 20', 'Outros'], meses_validas, is_money=True)
+    
+    # Tabela margem (Top 20 vs Outros)
+    table_data_marg = [
+        [dados[mes]['margem']['top_20'] for mes in meses_validas],
+        [dados[mes]['margem']['outros'] for mes in meses_validas]
+    ]
+    fig = add_tabela(fig, 3, table_data_marg, "Margem (%) - Top 20 vs Outros", 
+                    ['Top 20', 'Outros'], meses_validas, is_percent=True)
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # ========== PÁGINA 7 ==========
+    fig = nova_pagina("3. Top 20 vs Outros", is_continuacao=True)
+    
+    # Gráfico tonelagem (Top 20 vs Outros)
+    width = 0.35
+    x = np.arange(len(meses_validas))
+    
+    ax1 = fig.add_subplot(3, 1, 1)
+    bars1 = ax1.bar(x - width/2, table_data_ton[0], width, label='Top 20', color='#1f77b4')
+    bars2 = ax1.bar(x + width/2, table_data_ton[1], width, label='Outros', color='#ff7f0e')
+    ax1.set_title('Tonelagem (kg) - Top 20 vs Outros')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(meses_validas)
+    ax1.legend()
+    ax1.grid(True, linestyle='--', alpha=0.7)
+    
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:,.3f}'.replace(",", "X").replace(".", ",").replace("X", "."),
+                    ha='center', va='bottom', fontsize=8)
+    
+    # Gráfico faturamento (Top 20 vs Outros)
+    ax2 = fig.add_subplot(3, 1, 2)
+    bars1 = ax2.bar(x - width/2, table_data_fat[0], width, label='Top 20', color='#1f77b4')
+    bars2 = ax2.bar(x + width/2, table_data_fat[1], width, label='Outros', color='#ff7f0e')
+    ax2.set_title('Faturamento (R$) - Top 20 vs Outros')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(meses_validas)
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
     
-    pdf.savefig(fig, bbox_inches='tight')
-    plt.close()
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width()/2., height,
+                    f'R$ {height:,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."),
+                    ha='center', va='bottom', fontsize=8)
     
-    # Página 3 - Totais
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))
-    fig.patch.set_visible(False)
-    ax.axis('off')
-    
-    # Título da seção
-    ax.text(0.1, 0.95, "2. Totais", fontsize=14, fontweight='bold')
-    
-    # Tabela de totais
-    col_labels = [mes for mes in meses if mes in dados]
-    row_labels = ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)']
-    
-    # Preparar dados da tabela diretamente do JSON
-    table_data = [
-        [dados[mes]['tonelagem']['total'] for mes in meses if mes in dados],
-        [dados[mes]['faturamento']['total'] for mes in meses if mes in dados],
-        [dados[mes]['margem']['total'] for mes in meses if mes in dados]
-    ]
-    
-    # Formatando os valores para exibição
-    formatted_data = [
-        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in table_data[0]],
-        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in table_data[1]],
-        [f"{x:.2f}%" for x in table_data[2]]
-    ]
-    
-    # Posicionar tabela
-    table = ax.table(cellText=formatted_data, 
-                    rowLabels=row_labels, 
-                    colLabels=col_labels,
-                    loc='center', 
-                    cellLoc='center',
-                    bbox=[0.1, 0.7, 0.8, 0.2])
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)
-    
-    # Gráficos de barras
-    ax1 = fig.add_axes([0.1, 0.45, 0.8, 0.2])
-    ax1.bar(col_labels, table_data[0], color='skyblue')
-    ax1.set_title('Tonelagem Total (kg)')
-    ax1.grid(True, linestyle='--', alpha=0.7)
-    
-    ax2 = fig.add_axes([0.1, 0.2, 0.8, 0.2])
-    ax2.bar(col_labels, table_data[1], color='lightgreen')
-    ax2.set_title('Faturamento Total (R$)')
-    ax2.grid(True, linestyle='--', alpha=0.7)
-    
-    ax3 = fig.add_axes([0.1, -0.05, 0.8, 0.2])
-    ax3.bar(col_labels, table_data[2], color='salmon')
-    ax3.set_title('Margem Total (%)')
+    # Gráfico margem (Top 20 vs Outros)
+    ax3 = fig.add_subplot(3, 1, 3)
+    bars1 = ax3.bar(x - width/2, table_data_marg[0], width, label='Top 20', color='#1f77b4')
+    bars2 = ax3.bar(x + width/2, table_data_marg[1], width, label='Outros', color='#ff7f0e')
+    ax3.set_title('Margem (%) - Top 20 vs Outros')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(meses_validas)
+    ax3.legend()
     ax3.grid(True, linestyle='--', alpha=0.7)
     
-    pdf.savefig(fig, bbox_inches='tight')
-    plt.close()
-    
-    # Página 4 - Top 20 vs Outros
-    fig, ax = plt.subplots(figsize=(8.27, 11.69))
-    fig.patch.set_visible(False)
-    ax.axis('off')
-    
-    # Título da seção
-    ax.text(0.1, 0.95, "3. Top 20 vs Outros", fontsize=14, fontweight='bold')
-    
-    # Tabela para Tonelagem
-    ax.text(0.1, 0.9, "Tonelagem (kg)", fontsize=12, fontweight='bold')
-    ton_data = [
-        [dados[mes]['tonelagem']['top_20'] for mes in meses if mes in dados],
-        [dados[mes]['tonelagem']['outros'] for mes in meses if mes in dados]
-    ]
-    ton_formatted = [
-        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ton_data[0]],
-        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ton_data[1]]
-    ]
-    
-    table1 = ax.table(cellText=ton_formatted, 
-                     rowLabels=['Top 20', 'Outros'], 
-                     colLabels=col_labels,
-                     loc='center', 
-                     cellLoc='center',
-                     bbox=[0.1, 0.75, 0.8, 0.1])
-    table1.auto_set_font_size(False)
-    table1.set_fontsize(8)
-    
-    # Tabela para Faturamento
-    ax.text(0.1, 0.65, "Faturamento (R$)", fontsize=12, fontweight='bold')
-    fat_data = [
-        [dados[mes]['faturamento']['top_20'] for mes in meses if mes in dados],
-        [dados[mes]['faturamento']['outros'] for mes in meses if mes in dados]
-    ]
-    fat_formatted = [
-        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in fat_data[0]],
-        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in fat_data[1]]
-    ]
-    
-    table2 = ax.table(cellText=fat_formatted, 
-                     rowLabels=['Top 20', 'Outros'], 
-                     colLabels=col_labels,
-                     loc='center', 
-                     cellLoc='center',
-                     bbox=[0.1, 0.5, 0.8, 0.1])
-    table2.auto_set_font_size(False)
-    table2.set_fontsize(8)
-    
-    # Tabela para Margem
-    ax.text(0.1, 0.4, "Margem (%)", fontsize=12, fontweight='bold')
-    marg_data = [
-        [dados[mes]['margem']['top_20'] for mes in meses if mes in dados],
-        [dados[mes]['margem']['outros'] for mes in meses if mes in dados]
-    ]
-    marg_formatted = [
-        [f"{x:.2f}%" for x in marg_data[0]],
-        [f"{x:.2f}%" for x in marg_data[1]]
-    ]
-    
-    table3 = ax.table(cellText=marg_formatted, 
-                     rowLabels=['Top 20', 'Outros'], 
-                     colLabels=col_labels,
-                     loc='center', 
-                     cellLoc='center',
-                     bbox=[0.1, 0.25, 0.8, 0.1])
-    table3.auto_set_font_size(False)
-    table3.set_fontsize(8)
-    
-    # Gráficos
-    # Tonelagem
-    ax1 = fig.add_axes([0.1, 0.15, 0.25, 0.08])
-    width = 0.35
-    x = np.arange(len(col_labels))
-    ax1.bar(x - width/2, ton_data[0], width, label='Top 20')
-    ax1.bar(x + width/2, ton_data[1], width, label='Outros')
-    ax1.set_title('Tonelagem')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(col_labels, rotation=45, ha='right')
-    ax1.legend(fontsize=6)
-    
-    # Faturamento
-    ax2 = fig.add_axes([0.4, 0.15, 0.25, 0.08])
-    ax2.bar(x - width/2, fat_data[0], width, label='Top 20')
-    ax2.bar(x + width/2, fat_data[1], width, label='Outros')
-    ax2.set_title('Faturamento')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(col_labels, rotation=45, ha='right')
-    ax2.legend(fontsize=6)
-    
-    # Margem
-    ax3 = fig.add_axes([0.7, 0.15, 0.25, 0.08])
-    ax3.bar(x - width/2, marg_data[0], width, label='Top 20')
-    ax3.bar(x + width/2, marg_data[1], width, label='Outros')
-    ax3.set_title('Margem')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(col_labels, rotation=45, ha='right')
-    ax3.legend(fontsize=6)
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax3.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.2f}%',
+                    ha='center', va='bottom', fontsize=8)
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
