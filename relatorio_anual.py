@@ -3,6 +3,14 @@ import camelot
 import warnings
 import json
 import re
+import os
+import json
+from datetime import datetime
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import numpy as np
+import camelot
+import warnings
 
 # Ignorar warnings (opcional)
 warnings.filterwarnings("ignore")
@@ -11,6 +19,7 @@ warnings.filterwarnings("ignore")
 resultados = {}
 
 # Caminho base
+ano = "2025"
 base_path = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
 meses = ["Maio", "Junho", "Julho"]
 
@@ -124,3 +133,237 @@ for mes in meses:
 # Exibir o resultado em JSON
 print("\n=== Resultado em JSON ===")
 print(json.dumps(resultados, indent=4, ensure_ascii=False))
+
+# Supondo que seu código original populou a variável 'resultados' com os dados
+dados = resultados
+
+# Agora processamos para criar o PDF
+primeiro_mes = meses[0]
+ultimo_mes = meses[-1]
+
+# Caminho para salvar o PDF
+downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
+pdf_path = os.path.join(downloads_path, f"Relatório Analítico de Vendas {primeiro_mes} a {ultimo_mes} de {ano}.pdf")
+
+# Criar o PDF
+with PdfPages(pdf_path) as pdf:
+    # Configurações gerais
+    plt.rcParams['font.size'] = 10
+    
+    # Página 1 - Cabeçalho
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))  # A4
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    
+    # Título principal
+    titulo = f"Relatório Analítico de Vendas\n{primeiro_mes} a {ultimo_mes} de {ano}"
+    ax.text(0.5, 0.9, titulo, ha='center', va='center', fontsize=16, fontweight='bold')
+    
+    # Data e hora de geração
+    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    ax.text(0.5, 0.85, f"Gerado em: {data_hora}", ha='center', va='center', fontsize=10)
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # Página 2 - Quantidades
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    
+    # Título da seção
+    ax.text(0.1, 0.95, "1. Quantidades", fontsize=14, fontweight='bold')
+    
+    # Tabela de quantidades
+    col_labels = meses
+    row_labels = ['Clientes', 'Vendedores', 'Produtos']
+    
+    # Preparar dados da tabela diretamente do JSON gerado
+    table_data = [
+        [dados[mes]['qtde_clientes'] for mes in meses if mes in dados],
+        [dados[mes]['qtde_vendedores'] for mes in meses if mes in dados],
+        [dados[mes]['qtde_produtos'] for mes in meses if mes in dados]
+    ]
+    
+    # Posicionar tabela
+    table = ax.table(cellText=table_data, 
+                    rowLabels=row_labels, 
+                    colLabels=col_labels,
+                    loc='center', 
+                    cellLoc='center',
+                    bbox=[0.1, 0.6, 0.8, 0.3])
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+    
+    # Gráfico de linhas
+    ax2 = fig.add_axes([0.1, 0.1, 0.8, 0.4])
+    for i, row in enumerate(table_data):
+        ax2.plot(col_labels, row, marker='o', label=row_labels[i])
+    
+    ax2.set_title('Evolução das Quantidades')
+    ax2.set_ylabel('Quantidade')
+    ax2.legend()
+    ax2.grid(True, linestyle='--', alpha=0.7)
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # Página 3 - Totais
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    
+    # Título da seção
+    ax.text(0.1, 0.95, "2. Totais", fontsize=14, fontweight='bold')
+    
+    # Tabela de totais
+    col_labels = [mes for mes in meses if mes in dados]
+    row_labels = ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)']
+    
+    # Preparar dados da tabela diretamente do JSON
+    table_data = [
+        [dados[mes]['tonelagem']['total'] for mes in meses if mes in dados],
+        [dados[mes]['faturamento']['total'] for mes in meses if mes in dados],
+        [dados[mes]['margem']['total'] for mes in meses if mes in dados]
+    ]
+    
+    # Formatando os valores para exibição
+    formatted_data = [
+        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in table_data[0]],
+        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in table_data[1]],
+        [f"{x:.2f}%" for x in table_data[2]]
+    ]
+    
+    # Posicionar tabela
+    table = ax.table(cellText=formatted_data, 
+                    rowLabels=row_labels, 
+                    colLabels=col_labels,
+                    loc='center', 
+                    cellLoc='center',
+                    bbox=[0.1, 0.7, 0.8, 0.2])
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+    
+    # Gráficos de barras
+    ax1 = fig.add_axes([0.1, 0.45, 0.8, 0.2])
+    ax1.bar(col_labels, table_data[0], color='skyblue')
+    ax1.set_title('Tonelagem Total (kg)')
+    ax1.grid(True, linestyle='--', alpha=0.7)
+    
+    ax2 = fig.add_axes([0.1, 0.2, 0.8, 0.2])
+    ax2.bar(col_labels, table_data[1], color='lightgreen')
+    ax2.set_title('Faturamento Total (R$)')
+    ax2.grid(True, linestyle='--', alpha=0.7)
+    
+    ax3 = fig.add_axes([0.1, -0.05, 0.8, 0.2])
+    ax3.bar(col_labels, table_data[2], color='salmon')
+    ax3.set_title('Margem Total (%)')
+    ax3.grid(True, linestyle='--', alpha=0.7)
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+    
+    # Página 4 - Top 20 vs Outros
+    fig, ax = plt.subplots(figsize=(8.27, 11.69))
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    
+    # Título da seção
+    ax.text(0.1, 0.95, "3. Top 20 vs Outros", fontsize=14, fontweight='bold')
+    
+    # Tabela para Tonelagem
+    ax.text(0.1, 0.9, "Tonelagem (kg)", fontsize=12, fontweight='bold')
+    ton_data = [
+        [dados[mes]['tonelagem']['top_20'] for mes in meses if mes in dados],
+        [dados[mes]['tonelagem']['outros'] for mes in meses if mes in dados]
+    ]
+    ton_formatted = [
+        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ton_data[0]],
+        [f"{x:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ton_data[1]]
+    ]
+    
+    table1 = ax.table(cellText=ton_formatted, 
+                     rowLabels=['Top 20', 'Outros'], 
+                     colLabels=col_labels,
+                     loc='center', 
+                     cellLoc='center',
+                     bbox=[0.1, 0.75, 0.8, 0.1])
+    table1.auto_set_font_size(False)
+    table1.set_fontsize(8)
+    
+    # Tabela para Faturamento
+    ax.text(0.1, 0.65, "Faturamento (R$)", fontsize=12, fontweight='bold')
+    fat_data = [
+        [dados[mes]['faturamento']['top_20'] for mes in meses if mes in dados],
+        [dados[mes]['faturamento']['outros'] for mes in meses if mes in dados]
+    ]
+    fat_formatted = [
+        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in fat_data[0]],
+        [f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in fat_data[1]]
+    ]
+    
+    table2 = ax.table(cellText=fat_formatted, 
+                     rowLabels=['Top 20', 'Outros'], 
+                     colLabels=col_labels,
+                     loc='center', 
+                     cellLoc='center',
+                     bbox=[0.1, 0.5, 0.8, 0.1])
+    table2.auto_set_font_size(False)
+    table2.set_fontsize(8)
+    
+    # Tabela para Margem
+    ax.text(0.1, 0.4, "Margem (%)", fontsize=12, fontweight='bold')
+    marg_data = [
+        [dados[mes]['margem']['top_20'] for mes in meses if mes in dados],
+        [dados[mes]['margem']['outros'] for mes in meses if mes in dados]
+    ]
+    marg_formatted = [
+        [f"{x:.2f}%" for x in marg_data[0]],
+        [f"{x:.2f}%" for x in marg_data[1]]
+    ]
+    
+    table3 = ax.table(cellText=marg_formatted, 
+                     rowLabels=['Top 20', 'Outros'], 
+                     colLabels=col_labels,
+                     loc='center', 
+                     cellLoc='center',
+                     bbox=[0.1, 0.25, 0.8, 0.1])
+    table3.auto_set_font_size(False)
+    table3.set_fontsize(8)
+    
+    # Gráficos
+    # Tonelagem
+    ax1 = fig.add_axes([0.1, 0.15, 0.25, 0.08])
+    width = 0.35
+    x = np.arange(len(col_labels))
+    ax1.bar(x - width/2, ton_data[0], width, label='Top 20')
+    ax1.bar(x + width/2, ton_data[1], width, label='Outros')
+    ax1.set_title('Tonelagem')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(col_labels, rotation=45, ha='right')
+    ax1.legend(fontsize=6)
+    
+    # Faturamento
+    ax2 = fig.add_axes([0.4, 0.15, 0.25, 0.08])
+    ax2.bar(x - width/2, fat_data[0], width, label='Top 20')
+    ax2.bar(x + width/2, fat_data[1], width, label='Outros')
+    ax2.set_title('Faturamento')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(col_labels, rotation=45, ha='right')
+    ax2.legend(fontsize=6)
+    
+    # Margem
+    ax3 = fig.add_axes([0.7, 0.15, 0.25, 0.08])
+    ax3.bar(x - width/2, marg_data[0], width, label='Top 20')
+    ax3.bar(x + width/2, marg_data[1], width, label='Outros')
+    ax3.set_title('Margem')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(col_labels, rotation=45, ha='right')
+    ax3.legend(fontsize=6)
+    
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+
+print(f"Relatório gerado com sucesso em: {pdf_path}")
