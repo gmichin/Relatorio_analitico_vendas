@@ -203,12 +203,11 @@ with PdfPages(pdf_path) as pdf:
         
         return fig
     
-    # Função add_tabela atualizada
     def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False):
         ax = fig.add_subplot(3, 1, posicao)
         ax.axis('off')
-        
-        # Formata os dados (mantido igual)
+
+        # Formata os dados
         formatted_data = []
         for row in dados:
             formatted_row = []
@@ -225,19 +224,32 @@ with PdfPages(pdf_path) as pdf:
                 else:
                     formatted_row.append(f"{val:,}".replace(",", "."))
             formatted_data.append(formatted_row)
-        
-        # Ajuste no bbox da tabela
+
+        # Cria a tabela com configurações ajustadas
         table = ax.table(cellText=formatted_data, 
                        rowLabels=row_labels, 
                        colLabels=col_labels,
                        loc='center', 
                        cellLoc='center',
-                       bbox=[0.1, 0.1, 0.8, 0.7])  # Ajuste na altura (0.7 em vez de 0.8)
-        
+                       bbox=[0.1, 0.1, 0.8, 0.8])  # Ajuste no bbox para centralizar melhor
+
+        # Configurações para células uniformes
         table.auto_set_font_size(False)
-        table.set_fontsize(8)  # Fonte um pouco menor
-        table.scale(1, 1.3)   # Escala mais compacta
-        
+        table.set_fontsize(8)
+
+        # Ajusta o tamanho das células para serem uniformes
+        table.scale(1, 1.5)  # Aumenta a altura das células
+
+        # Define larguras iguais para todas as colunas
+        for key, cell in table.get_celld().items():
+            cell.set_width(0.15)  # Define largura fixa para todas as células
+            cell.set_height(0.1)   # Define altura fixa para todas as células
+
+            # Destaca cabeçalhos e primeira coluna
+            if key[0] == 0 or key[1] == -1:
+                cell.set_text_props(weight='bold')
+                cell.set_facecolor('#f0f0f0')
+
         return fig
     
     # Função para adicionar gráfico de linhas
@@ -358,7 +370,7 @@ with PdfPages(pdf_path) as pdf:
     plt.close()
     
     # ========== PÁGINA 5 ==========
-    fig = nova_pagina("3. Top 20 vs Outros")
+    fig = nova_pagina("3. Top 20 vs Outros", num_itens=1)  # Removido is_continuacao e definido num_itens=1
     
     # Preparar dados para a tabela consolidada
     table_data_consolidada = []
