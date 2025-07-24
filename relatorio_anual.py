@@ -411,92 +411,90 @@ with PdfPages(pdf_path) as pdf:
     plt.close()
     
     # ========== PÁGINA 5 ==========
-    fig = nova_pagina("3. Top 20 vs Outros", num_itens=1)  # Removido is_continuacao e definido num_itens=1
-    
-    # Preparar dados para a tabela consolidada
-    table_data_consolidada = []
-    for mes in meses_validas:
-        row = [
-            dados[mes]['tonelagem']['top_20'],
-            dados[mes]['tonelagem']['outros'],
-            dados[mes]['faturamento']['top_20'],
-            dados[mes]['faturamento']['outros'],
-            dados[mes]['margem']['top_20'],
-            dados[mes]['margem']['outros']
-        ]
-        table_data_consolidada.append(row)
-    
+    fig = nova_pagina("3. Top 20 vs Outros", num_itens=3)  # Agora com 3 itens (tabela + 2 gráficos)
+
+    # Tabela consolidada (mais compacta)
     fig = add_tabela(fig, 1,
                 [[dados[mes]['tonelagem']['top_20'],
-                 dados[mes]['tonelagem']['outros'],
-                 dados[mes]['faturamento']['top_20'],
-                 dados[mes]['faturamento']['outros'],
-                 dados[mes]['margem']['top_20'],
-                 dados[mes]['margem']['outros']] for mes in meses_validas],
-                "Top 20 vs Outros",
+                  dados[mes]['tonelagem']['outros'],
+                  dados[mes]['faturamento']['top_20'],
+                  dados[mes]['faturamento']['outros'],
+                  dados[mes]['margem']['top_20'],
+                  dados[mes]['margem']['outros']] for mes in meses_validas],
+                "Top 20 vs Outros - Resumo",
                 meses_validas,
-                ['Top20 (ton)', 'Outros (ton)', 'Top20 (R$)', 'Outros (R$)', 'Top20 (%)', 'Outros (%)'])
-    
-    pdf.savefig(fig, bbox_inches='tight')
-    plt.close()
-    
-    # ========== PÁGINA 6 ==========
-    fig = nova_pagina("3. Top 20 vs Outros", is_continuacao=True)
-    
-    # Gráfico tonelagem (Top 20 vs Outros)
+                ['Ton. Top20', 'Ton. Outros', 'Fat. Top20', 'Fat. Outros', 'Marg. Top20', 'Marg. Outros'])
+
+    # Gráfico de faturamento (Top 20 vs Outros)
+    ax1 = fig.add_subplot(3, 1, 2)
     width = 0.35
     x = np.arange(len(meses_validas))
-    
-    ax1 = fig.add_subplot(3, 1, 1)
-    bars1 = ax1.bar(x - width/2, [dados[mes]['tonelagem']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
-    bars2 = ax1.bar(x + width/2, [dados[mes]['tonelagem']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
-    ax1.set_title('Tonelagem (kg) - Top 20 vs Outros')
+
+    bars1 = ax1.bar(x - width/2, [dados[mes]['faturamento']['top_20'] for mes in meses_validas],
+                   width, label='Top 20', color='#1f77b4')
+    bars2 = ax1.bar(x + width/2, [dados[mes]['faturamento']['outros'] for mes in meses_validas], 
+                   width, label='Outros', color='#ff7f0e')
+
+    ax1.set_title('Faturamento (R$) - Top 20 vs Outros')
     ax1.set_xticks(x)
     ax1.set_xticklabels(meses_validas)
     ax1.legend()
     ax1.grid(True, linestyle='--', alpha=0.7)
-    
+
+    # Adicionar valores nas barras
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{height:,.3f}'.replace(",", "X").replace(".", ",").replace("X", "."),
+                    f'R$ {height:,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."),
                     ha='center', va='bottom', fontsize=8)
-    
-    # Gráfico faturamento (Top 20 vs Outros)
-    ax2 = fig.add_subplot(3, 1, 2)
-    bars1 = ax2.bar(x - width/2, [dados[mes]['faturamento']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
-    bars2 = ax2.bar(x + width/2, [dados[mes]['faturamento']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
-    ax2.set_title('Faturamento (R$) - Top 20 vs Outros')
+
+    # Gráfico de tonelagem (Top 20 vs Outros)
+    ax2 = fig.add_subplot(3, 1, 3)
+    bars1 = ax2.bar(x - width/2, [dados[mes]['tonelagem']['top_20'] for mes in meses_validas], 
+                   width, label='Top 20', color='#1f77b4')
+    bars2 = ax2.bar(x + width/2, [dados[mes]['tonelagem']['outros'] for mes in meses_validas], 
+                   width, label='Outros', color='#ff7f0e')
+
+    ax2.set_title('Tonelagem (kg) - Top 20 vs Outros')
     ax2.set_xticks(x)
     ax2.set_xticklabels(meses_validas)
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
-    
+
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
             ax2.text(bar.get_x() + bar.get_width()/2., height,
-                    f'R$ {height:,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."),
+                    f'{height:,.3f}'.replace(",", "X").replace(".", ",").replace("X", "."),
                     ha='center', va='bottom', fontsize=8)
-    
-    # Gráfico margem (Top 20 vs Outros)
-    ax3 = fig.add_subplot(3, 1, 3)
-    bars1 = ax3.bar(x - width/2, [dados[mes]['margem']['top_20'] for mes in meses_validas], width, label='Top 20', color='#1f77b4')
-    bars2 = ax3.bar(x + width/2, [dados[mes]['margem']['outros'] for mes in meses_validas], width, label='Outros', color='#ff7f0e')
-    ax3.set_title('Margem (%) - Top 20 vs Outros')
-    ax3.set_xticks(x)
-    ax3.set_xticklabels(meses_validas)
-    ax3.legend()
-    ax3.grid(True, linestyle='--', alpha=0.7)
-    
+
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+
+    # ========== PÁGINA 6 ==========
+    fig = nova_pagina("3. Top 20 vs Outros (continuação)", num_itens=1)
+
+    # Gráfico de margem (Top 20 vs Outros)
+    ax = fig.add_subplot(3, 1, 1)
+    bars1 = ax.bar(x - width/2, [dados[mes]['margem']['top_20'] for mes in meses_validas], 
+                  width, label='Top 20', color='#1f77b4')
+    bars2 = ax.bar(x + width/2, [dados[mes]['margem']['outros'] for mes in meses_validas], 
+                  width, label='Outros', color='#ff7f0e')
+
+    ax.set_title('Margem (%) - Top 20 vs Outros')
+    ax.set_xticks(x)
+    ax.set_xticklabels(meses_validas)
+    ax.legend()
+    ax.grid(True, linestyle='--', alpha=0.7)
+
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
-            ax3.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{height:.2f}%',
-                    ha='center', va='bottom', fontsize=8)
-    
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{height:.2f}%',
+                   ha='center', va='bottom', fontsize=8)
+
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
 
