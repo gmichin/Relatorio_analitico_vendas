@@ -202,12 +202,26 @@ with PdfPages(pdf_path) as pdf:
             ax.axis('off')
         
         return fig
-    
-    def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False):
+
+    def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False, is_large_table=False):
         ax = fig.add_subplot(3, 1, posicao)
         ax.axis('off')
 
-        # Formata os dados
+        # Configurações de tamanho aumentadas para tabelas maiores
+        if is_large_table:
+            col_width = 0.22  # Aumento de ~22% na largura
+            row_height = 0.18  # Aumento de ~20% na altura
+            header_height = 0.20
+            font_size = 10     # Fonte levemente maior
+            bottom_offset = 0.72  # Ajuste de posição vertical
+        else:
+            col_width = 0.18
+            row_height = 0.15
+            header_height = 0.18
+            font_size = 9
+            bottom_offset = 0.78
+
+        # Formatação dos dados (mantida)
         formatted_data = []
         for row in dados:
             formatted_row = []
@@ -225,32 +239,47 @@ with PdfPages(pdf_path) as pdf:
                     formatted_row.append(f"{val:,}".replace(",", "."))
             formatted_data.append(formatted_row)
 
-        # Cria a tabela com configurações ajustadas
-        table = ax.table(cellText=formatted_data, 
-                       rowLabels=row_labels, 
+        col_labels = ['Meses'] + col_labels
+        formatted_data_with_months = []
+        for month, row in zip(row_labels, formatted_data):
+            formatted_data_with_months.append([month] + row)
+
+        num_cols = len(col_labels)
+        num_rows = len(formatted_data_with_months)
+        table_width = num_cols * col_width
+        table_height = (num_rows * row_height) + header_height
+
+        left_pos = (0.94 - table_width) / 2
+        bottom_pos = bottom_offset - (table_height/2)
+
+        table = ax.table(cellText=formatted_data_with_months,
+                       rowLabels=[''] * num_rows,
                        colLabels=col_labels,
-                       loc='center', 
+                       loc='center',
                        cellLoc='center',
-                       bbox=[0.1, 0.1, 0.8, 0.8])  # Ajuste no bbox para centralizar melhor
+                       bbox=[left_pos, bottom_pos, table_width, table_height])
 
-        # Configurações para células uniformes
+        # Formatação de células
         table.auto_set_font_size(False)
-        table.set_fontsize(8)
+        table.set_fontsize(font_size)
 
-        # Ajusta o tamanho das células para serem uniformes
-        table.scale(1, 1.5)  # Aumenta a altura das células
-
-        # Define larguras iguais para todas as colunas
         for key, cell in table.get_celld().items():
-            cell.set_width(0.15)  # Define largura fixa para todas as células
-            cell.set_height(0.1)   # Define altura fixa para todas as células
-
-            # Destaca cabeçalhos e primeira coluna
-            if key[0] == 0 or key[1] == -1:
-                cell.set_text_props(weight='bold')
+            if key[0] == 0:
+                cell.set_text_props(weight='bold', fontsize=font_size)
                 cell.set_facecolor('#f0f0f0')
+                cell.set_height(header_height)
+            elif key[1] == 0:
+                cell.set_text_props(weight='bold', fontsize=font_size)
+                cell.set_facecolor('#f5f5f5')
+
+            cell.set_width(col_width)
+            if key[0] != 0:
+                cell.set_height(row_height)
+            cell.set_edgecolor('lightgray')
+            cell.set_linewidth(0.3)
 
         return fig
+
     
     # Função para adicionar gráfico de linhas
     def add_grafico_linhas(fig, posicao, dados_clientes, dados_vendedores, dados_produtos, meses_validas):
@@ -323,8 +352,14 @@ with PdfPages(pdf_path) as pdf:
     
     # Transpondo a tabela para ter meses nas linhas
     table_data_transposed = list(zip(*table_data))
-    fig = add_tabela(fig, 1, table_data_transposed, "", 
-                    meses_validas, ['Qtde Clientes', 'Qtde Vendedores', 'Qtde Produtos'])
+    fig = add_tabela(fig, 1, 
+                [[dados[mes]['qtde_clientes'], 
+                 dados[mes]['qtde_vendedores'], 
+                 dados[mes]['qtde_produtos']] for mes in meses_validas],
+                "Quantidades",
+                meses_validas,
+                ['Clientes', 'Vendedores', 'Produtos'],
+                is_large_table=True)
     
     # Gráfico de linhas combinado
     fig = add_grafico_linhas(fig, 2, 
@@ -348,8 +383,14 @@ with PdfPages(pdf_path) as pdf:
     
     # Transpondo a tabela para ter meses nas linhas
     table_data_transposed = list(zip(*table_data))
-    fig = add_tabela(fig, 1, table_data_transposed, "", 
-                    meses_validas, ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'])
+    fig = add_tabela(fig, 1,
+                [[dados[mes]['tonelagem']['total'],
+                 dados[mes]['faturamento']['total'],
+                 dados[mes]['margem']['total']] for mes in meses_validas],
+                "Totais",
+                meses_validas,
+                ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'],
+                is_large_table=True)
     
     # Gráfico de tonelagem
     fig = add_grafico(fig, 2, table_data[0], "Tonelagem Total (kg)", 'skyblue')
@@ -385,9 +426,16 @@ with PdfPages(pdf_path) as pdf:
         ]
         table_data_consolidada.append(row)
     
-    fig = add_tabela(fig, 1, table_data_consolidada, "", 
-                    meses_validas, 
-                    ['Top20_ton', 'Outros_ton', 'Top20_fat', 'Outros_fat', 'Top20_mar', 'Outros_mar'])
+    fig = add_tabela(fig, 1,
+                [[dados[mes]['tonelagem']['top_20'],
+                 dados[mes]['tonelagem']['outros'],
+                 dados[mes]['faturamento']['top_20'],
+                 dados[mes]['faturamento']['outros'],
+                 dados[mes]['margem']['top_20'],
+                 dados[mes]['margem']['outros']] for mes in meses_validas],
+                "Top 20 vs Outros",
+                meses_validas,
+                ['Top20 (ton)', 'Outros (ton)', 'Top20 (R$)', 'Outros (R$)', 'Top20 (%)', 'Outros (%)'])
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
