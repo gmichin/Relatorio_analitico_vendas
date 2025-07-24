@@ -157,13 +157,13 @@ plt.rcParams.update({
 # Tamanhos padrão
 fig_size = (8.27, 11.69) 
 graph_size = (6, 3) 
-table_size = (6, 2) 
+table_size = (6, 3) 
 
 # Margens padrão
 left_margin = 0.1
-right_margin = 0.9
+right_margin = 0.1
 bottom_margin = 0.1
-top_margin = 0.9
+top_margin = 0
 
 # Criar o PDF
 with PdfPages(pdf_path) as pdf:
@@ -191,16 +191,15 @@ with PdfPages(pdf_path) as pdf:
             fig.suptitle(f"{titulo_principal} (continuação)", fontweight='bold', y=0.98)
         else:
             fig.suptitle(titulo_principal, fontweight='bold', y=0.98)
-        
-        # Ajusta o espaçamento baseado no número de itens
-        if num_itens < 3:
-            fig.subplots_adjust(hspace=0.5)  # Aumenta o espaçamento vertical
-        
+
+        # Ajuste o espaçamento vertical para ser menor
+        fig.subplots_adjust(hspace=0.3) 
+
         # Adiciona subplots vazios para manter o mesmo tamanho de página
         for i in range(num_itens, 3):
             ax = fig.add_subplot(3, 1, i+1)
             ax.axis('off')
-        
+
         return fig
 
     def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False, is_large_table=False):
@@ -212,14 +211,14 @@ with PdfPages(pdf_path) as pdf:
             col_width = 0.22  # Aumento de ~22% na largura
             row_height = 0.18  # Aumento de ~20% na altura
             header_height = 0.20
-            font_size = 10     # Fonte levemente maior
-            bottom_offset = 0.72  # Ajuste de posição vertical
+            font_size = 9
+            bottom_offset = 0
         else:
             col_width = 0.18
             row_height = 0.15
             header_height = 0.18
             font_size = 9
-            bottom_offset = 0.78
+            bottom_offset = 0
 
         # Formatação dos dados (mantida)
         formatted_data = []
@@ -250,7 +249,7 @@ with PdfPages(pdf_path) as pdf:
         table_height = (num_rows * row_height) + header_height
 
         left_pos = (0.94 - table_width) / 2
-        bottom_pos = bottom_offset - (table_height/2)
+        bottom_pos = bottom_offset 
 
         table = ax.table(cellText=formatted_data_with_months,
                        rowLabels=[''] * num_rows,
@@ -410,8 +409,8 @@ with PdfPages(pdf_path) as pdf:
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
-    # ========== PÁGINA 5 ==========
-    fig = nova_pagina("3. Top 20 vs Outros", num_itens=3)  # Agora com 3 itens (tabela + 2 gráficos)
+   # ========== PÁGINA 5 ==========
+    fig = nova_pagina("3. Top 20 vs Outros", num_itens=2)  # Agora com 2 itens (tabela + 1 gráfico)
 
     # Tabela consolidada (mais compacta)
     fig = add_tabela(fig, 1,
@@ -423,9 +422,9 @@ with PdfPages(pdf_path) as pdf:
                   dados[mes]['margem']['outros']] for mes in meses_validas],
                 "Top 20 vs Outros - Resumo",
                 meses_validas,
-                ['Ton. Top20', 'Ton. Outros', 'Fat. Top20', 'Fat. Outros', 'Marg. Top20', 'Marg. Outros'])
+                ['Top20 Ton.', 'Outros Ton.', 'Top20 Fat.', 'Outros Fat.', 'Top20 Marg.', 'Outros Marg.'])
 
-    # Gráfico de faturamento (Top 20 vs Outros)
+    # Gráfico de faturamento (Top 20 vs Outros) - Primeiro gráfico
     ax1 = fig.add_subplot(3, 1, 2)
     width = 0.35
     x = np.arange(len(meses_validas))
@@ -449,8 +448,14 @@ with PdfPages(pdf_path) as pdf:
                     f'R$ {height:,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."),
                     ha='center', va='bottom', fontsize=8)
 
-    # Gráfico de tonelagem (Top 20 vs Outros)
-    ax2 = fig.add_subplot(3, 1, 3)
+    pdf.savefig(fig, bbox_inches='tight')
+    plt.close()
+
+    # ========== PÁGINA 6 ==========
+    fig = nova_pagina("3. Top 20 vs Outros (continuação)", num_itens=2)
+
+    # Gráfico de tonelagem (Top 20 vs Outros) - Segundo gráfico
+    ax2 = fig.add_subplot(3, 1, 1)
     bars1 = ax2.bar(x - width/2, [dados[mes]['tonelagem']['top_20'] for mes in meses_validas], 
                    width, label='Top 20', color='#1f77b4')
     bars2 = ax2.bar(x + width/2, [dados[mes]['tonelagem']['outros'] for mes in meses_validas], 
@@ -469,29 +474,23 @@ with PdfPages(pdf_path) as pdf:
                     f'{height:,.3f}'.replace(",", "X").replace(".", ",").replace("X", "."),
                     ha='center', va='bottom', fontsize=8)
 
-    pdf.savefig(fig, bbox_inches='tight')
-    plt.close()
-
-    # ========== PÁGINA 6 ==========
-    fig = nova_pagina("3. Top 20 vs Outros (continuação)", num_itens=1)
-
-    # Gráfico de margem (Top 20 vs Outros)
-    ax = fig.add_subplot(3, 1, 1)
-    bars1 = ax.bar(x - width/2, [dados[mes]['margem']['top_20'] for mes in meses_validas], 
+    # Gráfico de margem (Top 20 vs Outros) - Terceiro gráfico
+    ax3 = fig.add_subplot(3, 1, 2)
+    bars1 = ax3.bar(x - width/2, [dados[mes]['margem']['top_20'] for mes in meses_validas], 
                   width, label='Top 20', color='#1f77b4')
-    bars2 = ax.bar(x + width/2, [dados[mes]['margem']['outros'] for mes in meses_validas], 
+    bars2 = ax3.bar(x + width/2, [dados[mes]['margem']['outros'] for mes in meses_validas], 
                   width, label='Outros', color='#ff7f0e')
 
-    ax.set_title('Margem (%) - Top 20 vs Outros')
-    ax.set_xticks(x)
-    ax.set_xticklabels(meses_validas)
-    ax.legend()
-    ax.grid(True, linestyle='--', alpha=0.7)
+    ax3.set_title('Margem (%) - Top 20 vs Outros')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(meses_validas)
+    ax3.legend()
+    ax3.grid(True, linestyle='--', alpha=0.7)
 
     for bars in [bars1, bars2]:
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
+            ax3.text(bar.get_x() + bar.get_width()/2., height,
                    f'{height:.2f}%',
                    ha='center', va='bottom', fontsize=8)
 
