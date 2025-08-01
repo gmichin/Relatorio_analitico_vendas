@@ -20,7 +20,7 @@ resultados = {}
 
 # Caminho base
 ano = "2025"
-base_path = r"C:\Users\win11\OneDrive\Documentos\Relatórios Analítico de Vendas\2025"
+base_path = r"C:\Users\win11\OneDrive\Documentos\Ranking de Vendas\2025"
 meses = ["Maio", "Junho", "Julho"]
 
 def limpar_numero(texto, is_margem=False):
@@ -105,7 +105,7 @@ def extrair_valores(tabela_df):
     return dados
 
 for mes in meses:
-    pdf_path = os.path.join(base_path, mes, f"Relatório Analítico de Vendas - Geral - {mes} 2025.pdf")
+    pdf_path = os.path.join(base_path, mes, f"Ranking de Vendas - Geral - {mes} 2025.pdf")
     
     if os.path.exists(pdf_path):
         print(f"\n=== Extraindo tabelas de {mes} ===")
