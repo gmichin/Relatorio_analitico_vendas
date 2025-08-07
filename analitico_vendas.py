@@ -21,7 +21,7 @@ resultados = {}
 # Caminho base
 ano = "2025"
 base_path = r"C:\Users\win11\OneDrive\Documentos\Ranking de Vendas\2025"
-meses = ["Maio", "Junho", "Julho"]
+meses = ["Maio", "Junho", "Julho", "Agosto"]
 
 def limpar_numero(texto, is_margem=False):
     """Converte strings numéricas com símbolos em floats"""
@@ -48,59 +48,68 @@ def extrair_valores(tabela_df):
     dados = {}
     texto_tabela = tabela_df.to_string(index=False, header=False)
     
-    # Extrair estatísticas gerais (valores inteiros)
-    dados['qtde_clientes'] = int(re.search(r'Qtde Clientes\s+(\d+)', texto_tabela).group(1))
-    dados['qtde_vendedores'] = int(re.search(r'Qtde Vendedores\s+(\d+)', texto_tabela).group(1))
-    dados['qtde_produtos'] = int(re.search(r'Qtde Produtos\s+(\d+)', texto_tabela).group(1))
+    try:
+        # Extrair estatísticas gerais (valores inteiros)
+        dados['qtde_clientes'] = int(re.search(r'Qtde Clientes\s+(\d+)', texto_tabela).group(1))
+        dados['qtde_vendedores'] = int(re.search(r'Qtde Vendedores\s+(\d+)', texto_tabela).group(1))
+        dados['qtde_produtos'] = int(re.search(r'Qtde Produtos\s+(\d+)', texto_tabela).group(1))
+    except (AttributeError, ValueError):
+        dados['qtde_clientes'] = 0
+        dados['qtde_vendedores'] = 0
+        dados['qtde_produtos'] = 0
     
-    # Função auxiliar para extrair valores entre parênteses
-    def extrair_parenteses(texto, padrao):
-        matches = re.findall(padrao + r'.*?\(([^)]+)\)', texto_tabela, re.DOTALL)
-        return matches[-1] if matches else None
+    # Inicializar todos os campos com valores padrão
+    dados['tonelagem'] = {'total': 0.0, 'top_20': 0.0, 'outros': 0.0}
+    dados['faturamento'] = {'total': 0.0, 'top_20': 0.0, 'outros': 0.0}
+    dados['margem'] = {'total': 0.0, 'top_20': 0.0, 'outros': 0.0}
     
-    # Extrair tonelagem (3 decimais)
-    tonelagem_total = re.search(r'Tonelagem.*?Total:\s*([\d.,]+)', texto_tabela, re.DOTALL)
-    if tonelagem_total:
-        # Primeiro valor entre parênteses após porcentagem é Outros
-        outros_ton = extrair_parenteses(texto_tabela, r'Tonelagem.*?\d+\.\d+%')
-        # Segundo valor entre parênteses após porcentagem é Top 20
-        top20_ton = extrair_parenteses(texto_tabela, r'Tonelagem.*?\d+\.\d+%.*?\d+\.\d+%')
-        
-        dados['tonelagem'] = {
-            'total': round(limpar_numero(tonelagem_total.group(1)), 3),
-            'top_20': round(limpar_numero(top20_ton) if top20_ton else 0.0, 3),
-            'outros': round(limpar_numero(outros_ton) if outros_ton else 0.0, 3)
-        }
+    try:
+        # Extrair tonelagem (3 decimais)
+        tonelagem_total = re.search(r'Tonelagem.*?Total:\s*([\d.,]+)', texto_tabela, re.DOTALL)
+        if tonelagem_total:
+            # Encontrar todos os valores entre parênteses na seção de tonelagem
+            valores_ton = re.findall(r'\(([\d.,]+)\)', texto_tabela.split('Tonelagem')[-1].split('Faturamento')[0])
+            if len(valores_ton) >= 2:
+                dados['tonelagem'] = {
+                    'total': round(limpar_numero(tonelagem_total.group(1)), 3),
+                    'top_20': round(limpar_numero(valores_ton[1]), 3),
+                    'outros': round(limpar_numero(valores_ton[0]), 3)
+                }
+    except Exception as e:
+        print(f"Erro ao extrair tonelagem: {e}")
     
-    # Extrair faturamento (2 decimais)
-    faturamento_total = re.search(r'Faturamento.*?Total:\s*([R\$ \d.,]+)', texto_tabela, re.DOTALL)
-    if faturamento_total:
-        # Primeiro valor entre parênteses após porcentagem é Outros
-        outros_fat = extrair_parenteses(texto_tabela, r'Faturamento.*?\d+\.\d+%')
-        # Segundo valor entre parênteses após porcentagem é Top 20
-        top20_fat = extrair_parenteses(texto_tabela, r'Faturamento.*?\d+\.\d+%.*?\d+\.\d+%')
-        
-        dados['faturamento'] = {
-            'total': round(limpar_numero(faturamento_total.group(1)), 2),
-            'top_20': round(limpar_numero(top20_fat) if top20_fat else 0.0, 2),
-            'outros': round(limpar_numero(outros_fat) if outros_fat else 0.0, 2)
-        }
+    try:
+        # Extrair faturamento (2 decimais)
+        faturamento_total = re.search(r'Faturamento.*?Total:\s*([R\$ \d.,]+)', texto_tabela, re.DOTALL)
+        if faturamento_total:
+            # Encontrar todos os valores entre parênteses na seção de faturamento
+            valores_fat = re.findall(r'\(([R\$ \d.,]+)\)', texto_tabela.split('Faturamento')[-1].split('Margem')[0])
+            if len(valores_fat) >= 2:
+                dados['faturamento'] = {
+                    'total': round(limpar_numero(faturamento_total.group(1)), 2),
+                    'top_20': round(limpar_numero(valores_fat[1]), 2),
+                    'outros': round(limpar_numero(valores_fat[0]), 2)
+                }
+    except Exception as e:
+        print(f"Erro ao extrair faturamento: {e}")
     
-    # Extrair margem (valores já estão com ponto decimal)
-    margem_total = re.search(r'Margem.*?Total:\s*([\d.,]+%)', texto_tabela, re.DOTALL)
-    if margem_total:
-        # Encontrar todos os valores de margem com seus espaçamentos
-        margens = re.findall(r'(\s+)\(([\d.,]+%)\)', texto_tabela.split('Margem')[-1])
-        
-        if len(margens) >= 2:
-            # Ordenar pelo espaçamento - menos espaços = top_20, mais espaços = outros
-            margens.sort(key=lambda x: len(x[0]))
+    try:
+        # Extrair margem (valores já estão com ponto decimal)
+        margem_total = re.search(r'Margem.*?Total:\s*([\d.,]+%)', texto_tabela, re.DOTALL)
+        if margem_total:
+            # Encontrar todos os valores de margem
+            margens = re.findall(r'(\d+\.\d+%)', texto_tabela.split('Margem')[-1])
             
-            dados['margem'] = {
-                'total': round(limpar_numero(margem_total.group(1), True), 2),
-                'top_20': round(limpar_numero(margens[0][1], True), 2),
-                'outros': round(limpar_numero(margens[1][1], True), 2)
-            }
+            if len(margens) >= 3:  # Total + Top20 + Outros
+                dados['margem'] = {
+                    'total': round(limpar_numero(margem_total.group(1), True), 2),
+                    'top_20': round(limpar_numero(margens[1], True), 2),
+                    'outros': round(limpar_numero(margens[2], True), 2)
+                }
+            elif len(margens) == 1:  # Apenas Total
+                dados['margem']['total'] = round(limpar_numero(margem_total.group(1), True), 2)
+    except Exception as e:
+        print(f"Erro ao extrair margem: {e}")
     
     return dados
 
