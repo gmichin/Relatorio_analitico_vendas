@@ -20,8 +20,8 @@ resultados = {}
 
 # Caminho base
 ano = "2025"
-base_path = r"C:\Users\win11\OneDrive\Documentos\Ranking de Vendas\2025"
-meses = ["Maio", "Junho", "Julho", "Agosto"]
+base_path = r"C:\Users\win11\OneDrive\Documentos\Relação vendedores\Ranking de Vendas\2025"
+meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro"]
 
 def limpar_numero(texto, is_margem=False):
     """Converte strings numéricas com símbolos em floats"""
@@ -165,14 +165,6 @@ plt.rcParams.update({
 
 # Tamanhos padrão
 fig_size = (8.27, 11.69) 
-graph_size = (6, 3) 
-table_size = (6, 3) 
-
-# Margens padrão
-left_margin = 0.1
-right_margin = 0.1
-bottom_margin = 0.1
-top_margin = 0
 
 # Criar o PDF
 with PdfPages(pdf_path) as pdf:
@@ -201,8 +193,13 @@ with PdfPages(pdf_path) as pdf:
         else:
             fig.suptitle(titulo_principal, fontweight='bold', y=0.98)
 
-        # Ajuste o espaçamento vertical para ser menor
-        fig.subplots_adjust(hspace=0.3) 
+        # Ajuste dinâmico do espaçamento baseado no número de itens
+        if num_itens == 1:
+            fig.subplots_adjust(hspace=0.1, top=0.92, bottom=0.08)
+        elif num_itens == 2:
+            fig.subplots_adjust(hspace=0.3, top=0.94, bottom=0.06)
+        else:
+            fig.subplots_adjust(hspace=0.4, top=0.96, bottom=0.04)
 
         # Adiciona subplots vazios para manter o mesmo tamanho de página
         for i in range(num_itens, 3):
@@ -211,25 +208,37 @@ with PdfPages(pdf_path) as pdf:
 
         return fig
 
-    def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False, is_large_table=False):
+    def add_tabela(fig, posicao, dados, titulo, row_labels, col_labels, is_money=False, is_percent=False, is_large_table=False, show_total=True, is_integer=False):
         ax = fig.add_subplot(3, 1, posicao)
         ax.axis('off')
 
-        # Configurações de tamanho aumentadas para tabelas maiores
-        if is_large_table:
-            col_width = 0.22  # Aumento de ~22% na largura
-            row_height = 0.18  # Aumento de ~20% na altura
-            header_height = 0.20
-            font_size = 9
-            bottom_offset = 0
-        else:
-            col_width = 0.18
-            row_height = 0.15
-            header_height = 0.18
-            font_size = 9
-            bottom_offset = 0
+        # Configurações de tamanho ajustadas dinamicamente
+        num_meses = len(row_labels)
 
-        # Formatação dos dados (mantida)
+        # Ajustar tamanhos baseado no número de meses
+        if num_meses <= 6:
+            col_width = 0.18
+            row_height = 0.12
+            header_height = 0.15
+            font_size = 9
+        elif num_meses <= 9:
+            col_width = 0.16
+            row_height = 0.10
+            header_height = 0.13
+            font_size = 8
+        else:
+            col_width = 0.14
+            row_height = 0.08
+            header_height = 0.11
+            font_size = 7
+
+        # Ajustes adicionais para tabelas grandes
+        if is_large_table:
+            col_width *= 1.2
+            row_height *= 1.1
+            header_height *= 1.1
+
+        # Formatação dos dados
         formatted_data = []
         for row in dados:
             formatted_row = []
@@ -238,6 +247,9 @@ with PdfPages(pdf_path) as pdf:
                     formatted_row.append(f"R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 elif is_percent:
                     formatted_row.append(f"{val:.2f}%")
+                elif is_integer:
+                    # Para números inteiros, formata sem casas decimais
+                    formatted_row.append(f"{int(val):,}".replace(",", "."))
                 elif isinstance(val, float):
                     if 'Tonelagem' in titulo:
                         formatted_row.append(f"{val:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -247,18 +259,56 @@ with PdfPages(pdf_path) as pdf:
                     formatted_row.append(f"{val:,}".replace(",", "."))
             formatted_data.append(formatted_row)
 
+        # Calcular somas das colunas se mostrar total
+        if show_total and dados:
+            num_cols = len(dados[0])
+            somas = []
+            for col_idx in range(num_cols):
+                if is_percent:
+                    # Para percentuais, calcular média
+                    soma_col = sum(row[col_idx] for row in dados) / len(dados)
+                    somas.append(f"{soma_col:.2f}%")
+                elif is_integer:
+                    # Para inteiros, soma normal
+                    soma_col = sum(row[col_idx] for row in dados)
+                    somas.append(f"{int(soma_col):,}".replace(",", "."))
+                elif is_money:
+                    soma_col = sum(row[col_idx] for row in dados)
+                    somas.append(f"R$ {soma_col:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                else:
+                    soma_col = sum(row[col_idx] for row in dados)
+                    if 'Tonelagem' in titulo:
+                        somas.append(f"{soma_col:,.3f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    else:
+                        somas.append(f"{soma_col:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        else:
+            somas = []
+
         col_labels = ['Meses'] + col_labels
         formatted_data_with_months = []
         for month, row in zip(row_labels, formatted_data):
             formatted_data_with_months.append([month] + row)
+
+        # Adicionar linha de soma se necessário
+        total_row_index = None
+        if show_total and somas:
+            formatted_data_with_months.append(['TOTAL'] + somas)
+            total_row_index = len(formatted_data_with_months)  # Índice da linha TOTAL
 
         num_cols = len(col_labels)
         num_rows = len(formatted_data_with_months)
         table_width = num_cols * col_width
         table_height = (num_rows * row_height) + header_height
 
+        # Ajustar posição vertical baseado no número de linhas
+        if num_rows <= 8:
+            bottom_pos = 0.1
+        elif num_rows <= 10:
+            bottom_pos = 0.05
+        else:
+            bottom_pos = 0.02
+
         left_pos = (0.94 - table_width) / 2
-        bottom_pos = bottom_offset 
 
         table = ax.table(cellText=formatted_data_with_months,
                        rowLabels=[''] * num_rows,
@@ -267,28 +317,39 @@ with PdfPages(pdf_path) as pdf:
                        cellLoc='center',
                        bbox=[left_pos, bottom_pos, table_width, table_height])
 
-        # Formatação de células
+        # Formatação de células - CORRIGIDA
         table.auto_set_font_size(False)
         table.set_fontsize(font_size)
 
         for key, cell in table.get_celld().items():
-            if key[0] == 0:
-                cell.set_text_props(weight='bold', fontsize=font_size)
-                cell.set_facecolor('#f0f0f0')
-                cell.set_height(header_height)
-            elif key[1] == 0:
-                cell.set_text_props(weight='bold', fontsize=font_size)
-                cell.set_facecolor('#f5f5f5')
+            row, col = key
 
+            # Configurações básicas para todas as células
             cell.set_width(col_width)
-            if key[0] != 0:
+            if row == 0:
+                cell.set_height(header_height)
+            else:
                 cell.set_height(row_height)
             cell.set_edgecolor('lightgray')
             cell.set_linewidth(0.3)
 
+            # Cabeçalho (linha 0) - TODAS as células
+            if row == 0:
+                cell.set_text_props(weight='bold', fontsize=font_size)
+                cell.set_facecolor('#f0f0f0')
+
+            # Linha TOTAL - TODAS as células (incluindo a primeira coluna)
+            elif total_row_index is not None and row == total_row_index:
+                cell.set_text_props(weight='bold', fontsize=font_size)
+                cell.set_facecolor('#f0f0f0')  # Mesma cor do cabeçalho
+
+            # Primeira coluna (coluna 0) - exceto cabeçalho e linha TOTAL
+            elif col == 0 and row > 0 and (total_row_index is None or row != total_row_index):
+                cell.set_text_props(weight='bold', fontsize=font_size)
+                cell.set_facecolor('#f5f5f5')
+
         return fig
 
-    
     # Função para adicionar gráfico de linhas
     def add_grafico_linhas(fig, posicao, dados_clientes, dados_vendedores, dados_produtos, meses_validas):
         ax = fig.add_subplot(3, 1, posicao)
@@ -351,23 +412,17 @@ with PdfPages(pdf_path) as pdf:
     # ========== PÁGINA 2 ==========
     fig = nova_pagina("1. Quantidades")
     
-    # Tabela de quantidades (formato atualizado)
-    table_data = [
-        [dados[mes]['qtde_clientes'] for mes in meses_validas],
-        [dados[mes]['qtde_vendedores'] for mes in meses_validas],
-        [dados[mes]['qtde_produtos'] for mes in meses_validas]
-    ]
-    
-    # Transpondo a tabela para ter meses nas linhas
-    table_data_transposed = list(zip(*table_data))
-    fig = add_tabela(fig, 1, 
+    # Tabela de quantidades (formato atualizado) - COM TOTAL mas como números inteiros
+    fig = add_tabela(fig, 1,
                 [[dados[mes]['qtde_clientes'], 
                  dados[mes]['qtde_vendedores'], 
                  dados[mes]['qtde_produtos']] for mes in meses_validas],
                 "Quantidades",
                 meses_validas,
                 ['Clientes', 'Vendedores', 'Produtos'],
-                is_large_table=True)
+                is_large_table=True,
+                show_total=True,  # COM TOTAL para quantidades
+                is_integer=True)  # Especifica que são números inteiros
     
     # Gráfico de linhas combinado
     fig = add_grafico_linhas(fig, 2, 
@@ -382,15 +437,7 @@ with PdfPages(pdf_path) as pdf:
     # ========== PÁGINA 3 ==========
     fig = nova_pagina("2. Totais")
     
-    # Tabela de totais (formato atualizado)
-    table_data = [
-        [dados[mes]['tonelagem']['total'] for mes in meses_validas],
-        [dados[mes]['faturamento']['total'] for mes in meses_validas],
-        [dados[mes]['margem']['total'] for mes in meses_validas]
-    ]
-    
-    # Transpondo a tabela para ter meses nas linhas
-    table_data_transposed = list(zip(*table_data))
+    # Tabela de totais (formato atualizado) - COM TOTAL
     fig = add_tabela(fig, 1,
                 [[dados[mes]['tonelagem']['total'],
                  dados[mes]['faturamento']['total'],
@@ -398,30 +445,37 @@ with PdfPages(pdf_path) as pdf:
                 "Totais",
                 meses_validas,
                 ['Tonelagem (kg)', 'Faturamento (R$)', 'Margem (%)'],
-                is_large_table=True)
+                is_large_table=True,
+                show_total=True)  # COM TOTAL para totais
     
     # Gráfico de tonelagem
-    fig = add_grafico(fig, 2, table_data[0], "Tonelagem Total (kg)", 'skyblue')
-    
-    # Gráfico de faturamento
-    fig = add_grafico(fig, 3, table_data[1], "Faturamento Total (R$)", 'lightgreen')
+    fig = add_grafico(fig, 2, 
+                     [dados[mes]['tonelagem']['total'] for mes in meses_validas], 
+                     "Tonelagem Total (kg)", 'skyblue')
     
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
     # ========== PÁGINA 4 ==========
-    fig = nova_pagina("2. Totais", is_continuacao=True, num_itens=1)
+    fig = nova_pagina("2. Totais (continuação)", num_itens=2)
 
+    # Gráfico de faturamento
+    fig = add_grafico(fig, 1, 
+                     [dados[mes]['faturamento']['total'] for mes in meses_validas], 
+                     "Faturamento Total (R$)", 'lightgreen')
+    
     # Gráfico de margem
-    fig = add_grafico(fig, 1, table_data[2], "Margem Total (%)", 'salmon', is_percent=True)
+    fig = add_grafico(fig, 2, 
+                     [dados[mes]['margem']['total'] for mes in meses_validas], 
+                     "Margem Total (%)", 'salmon', is_percent=True)
 
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
     
    # ========== PÁGINA 5 ==========
-    fig = nova_pagina("3. Top 20 vs Outros", num_itens=2)  # Agora com 2 itens (tabela + 1 gráfico)
+    fig = nova_pagina("3. Top 20 vs Outros", num_itens=2)
 
-    # Tabela consolidada (mais compacta)
+    # Tabela consolidada - SEM TOTAL
     fig = add_tabela(fig, 1,
                 [[dados[mes]['tonelagem']['top_20'],
                   dados[mes]['tonelagem']['outros'],
@@ -431,7 +485,8 @@ with PdfPages(pdf_path) as pdf:
                   dados[mes]['margem']['outros']] for mes in meses_validas],
                 "Top 20 vs Outros - Resumo",
                 meses_validas,
-                ['Top20 Ton.', 'Outros Ton.', 'Top20 Fat.', 'Outros Fat.', 'Top20 Marg.', 'Outros Marg.'])
+                ['Top20 Ton.', 'Outros Ton.', 'Top20 Fat.', 'Outros Fat.', 'Top20 Marg.', 'Outros Marg.'],
+                show_total=False)  # SEM TOTAL para Top 20 vs Outros
 
     # Gráfico de faturamento (Top 20 vs Outros) - Primeiro gráfico
     ax1 = fig.add_subplot(3, 1, 2)
