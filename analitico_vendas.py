@@ -152,7 +152,7 @@ ultimo_mes = meses[-1]
 
 # Caminho para salvar o PDF
 downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
-pdf_path = os.path.join(downloads_path, f"Relatório Analítico de Vendas {primeiro_mes} a {ultimo_mes} de {ano}.pdf")
+pdf_path = os.path.join(downloads_path, f"Relatório Analítico de Vendas - {primeiro_mes} a {ultimo_mes} de {ano}.pdf")
 
 # Configurações padrão
 plt.rcParams.update({
@@ -503,14 +503,11 @@ with PdfPages(pdf_path) as pdf:
     ax1.set_xticklabels(meses_validas)
     ax1.legend()
     ax1.grid(True, linestyle='--', alpha=0.7)
+    
+    # MELHORIA: Adicionar mais valores no eixo Y
+    ax1.yaxis.set_major_locator(plt.MaxNLocator(10))  # Aumenta para 10 valores no eixo Y
 
-    # Adicionar valores nas barras
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height,
-                    f'R$ {height:,.2f}'.replace(",", "X").replace(".", ",").replace("X", "."),
-                    ha='center', va='bottom', fontsize=8)
+    # REMOVIDO: Código que adicionava valores nas barras
 
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
@@ -530,13 +527,11 @@ with PdfPages(pdf_path) as pdf:
     ax2.set_xticklabels(meses_validas)
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
+    
+    # MELHORIA: Adicionar mais valores no eixo Y
+    ax2.yaxis.set_major_locator(plt.MaxNLocator(10))  # Aumenta para 10 valores no eixo Y
 
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{height:,.3f}'.replace(",", "X").replace(".", ",").replace("X", "."),
-                    ha='center', va='bottom', fontsize=8)
+    # REMOVIDO: Código que adicionava valores nas barras
 
     # Gráfico de margem (Top 20 vs Outros) - Terceiro gráfico
     ax3 = fig.add_subplot(3, 1, 2)
@@ -550,13 +545,11 @@ with PdfPages(pdf_path) as pdf:
     ax3.set_xticklabels(meses_validas)
     ax3.legend()
     ax3.grid(True, linestyle='--', alpha=0.7)
+    
+    # MELHORIA: Adicionar mais valores no eixo Y
+    ax3.yaxis.set_major_locator(plt.MaxNLocator(10))  # Aumenta para 10 valores no eixo Y
 
-    for bars in [bars1, bars2]:
-        for bar in bars:
-            height = bar.get_height()
-            ax3.text(bar.get_x() + bar.get_width()/2., height,
-                   f'{height:.2f}%',
-                   ha='center', va='bottom', fontsize=8)
+    # REMOVIDO: Código que adicionava valores nas barras
 
     pdf.savefig(fig, bbox_inches='tight')
     plt.close()
